@@ -201,8 +201,18 @@ azureuser@lab1:~$ ssh azureuser@127.0.0.1 -p 8080
 `docker, virtualbox, vmware, azure, libvirt, and more`
 
 What does command: `vagrant init` do?
-`This initializes the current directory to be a Vagrant environment by creating an initial Vagrantfile if one does not already exist.
-`
+```bash
+#This initializes the current directory to be a Vagrant environment by creating an initial Vagrantfile if one does not already exist.
+
+#If a first argument is given, it will prepopulate the config.vm.box setting in the created Vagrantfile.
+
+#If a second argument is given, it will prepopulate the config.vm.box_url setting in the created Vagrantfile.
+
+vagrant init hashicorp/bionic64
+
+vagrant init my-company-box https://example.com/my-company.box
+```
+
 5.2 What is box in Vagrant? 
 `Boxes are the package format for Vagrant environments. It is similar to images for containers.`
 How to add a box to the vagrant environment?
@@ -219,6 +229,17 @@ This adds a box with the given address to Vagrant. The address can be one of thr
 ```
 
 5.3 Show the provisioning part of your sample code and explain it?
+```
+subconfig.vm.provision "file", source: "~/.gitconfig", destination: ".gitconfig"
+
+subconfig.vm.synced_folder "src/", "/srv/website"
+
+subconfig.vm.provision "shell", inline: <<-SHELL
+    sudo echo "192.168.1.2 lab2" | sudo tee -a /etc/hosts
+    sudo echo "192.168.2.1 lab3" | sudo tee -a /etc/hosts
+    sudo apt install net-tools
+SHELL
+```
 
 5.4 Upload a file from your host to a vm? Share a folder on your host to a vm.
 ```bash
