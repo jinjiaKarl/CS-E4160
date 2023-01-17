@@ -207,6 +207,8 @@ azureuser@lab1:~$ lynx localhost:8080
 
 ```bash
 azureuser@lab1:~$ while true; do echo -e "HTTP/1.1 200 OK\n\n $(date)" | nc -l localhost 8080; done
+
+azureuser@lab1:~$ nc -l localhost 8080
 SSH-2.0-OpenSSH_8.2p1 Ubuntu-4ubuntu0.5
 
 
