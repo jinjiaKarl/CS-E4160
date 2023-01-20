@@ -16,8 +16,19 @@ terraform apply
 # on local machine
 eval `ssh-agent`
 ssh-add ~/.ssh/id_rsa
+ssh-add -L 
 ssh -A azuseruser@public_ip
 ssh azuser@private_ip
+
+
+# use vagrant
+# https://stackoverflow.com/questions/30075461/how-do-i-add-my-own-public-key-to-vagrant-vm
+eval `ssh-agent`
+ssh-add ~/.ssh/id_rsa
+ssh-add -L
+vagrant ssh lab1 -- -i ~/.ssh/id_rsa -A
+$lab1 ssh vagrant@lab2
+$lab1 ssh vagrant@lab3
 ```
 
 2.1 Using ip(8), find all the active interfaces on your machine.
@@ -66,9 +77,15 @@ options edns0 trust-ad
 search xfjdr3y3vjyevevb1di4udcxse.fx.internal.cloudapp.net
 
 
-
-systemd-resolve --status
+sudo service systemd-resolved status
 netstat -ltun | grep 53
+
+# A search domain provides a default domain name for searches. If you provide example.net and example.com as search domains and try to contact the host server1, the system will look for server1.example.net and server1.example.com without you having to type out the full domain.
+
+# if `domain` and `search` directives are both used, only the last instance will be used for DNS queries.
+
+# `domain` field: https://askubuntu.com/questions/363116/domain-in-resolv-conf-shows-the-wrong-domain-name
+# https://www.daemon-systems.org/man/resolv.conf.5.html
 ```
 
 2.4 Using dig(1), find the responsible name servers for the cs.hut.fi domain.
@@ -119,7 +136,40 @@ Why does this address sometimes produce different results on different tracerout
 ```bash
 # -I icmp; -m maxhop; -n no-reverse-dns
 traceroute -I -n -m 60 amazon.com
+traceroute to amazon.com (205.251.242.103), 60 hops max, 60 byte packets
+ 1  * 192.168.64.1  1.735 ms  1.726 ms
+ 2  * * 192.168.31.1  3.833 ms
+ 3  * * 82.130.32.252  4.853 ms
+ 4  82.130.63.245  19.475 ms  19.472 ms  19.465 ms
+ 5  * 109.105.102.168  5.243 ms  5.207 ms
+ 6  * * 109.105.97.77  25.107 ms
+ 7  109.105.97.80  26.896 ms *  27.003 ms
+ 8  109.105.97.64  134.736 ms  130.502 ms  123.538 ms
+ 9  198.32.160.64  123.429 ms  124.557 ms  124.533 ms
+10  150.222.68.80  123.037 ms *  124.674 ms
+11  150.222.68.81  131.373 ms *  134.797 ms
+12  * * *
+13  150.222.68.64  132.744 ms  124.689 ms  124.547 ms
+14  * * *
+15  * * *
+16  * * *
+17  * * *
+18  * * *
+19  * * *
+20  52.93.28.226  133.366 ms  133.358 ms  133.352 ms
+21  * * *
+22  * * *
+23  * * *
+24  * * *
+25  * * *
+26  * * *
+27  * * *
+28  * * *
+29  * * *
+30  * * *
+31  205.251.242.103  131.000 ms  130.780 ms  131.112 ms
 # Because amazon.com has a few ip addresses. You can use `dig amazon.com`
+dig amazon.com +short
 ```
 
 2.8 Using mtr(8) find out the minimum, maximum and average network latency between your machine and google.com
@@ -127,6 +177,7 @@ traceroute -I -n -m 60 amazon.com
 Can the packet loss %age > 0 even if there is no loss in transport layer traffic? Why?
 
 ```bash
+# using ICMP to probe
 # -r report; -c number of packtes
 mtr -rn -c 20 google.com
 # Maybe firewalls, limit the icmp speed; security consideration, do not respond ICMP
@@ -206,8 +257,6 @@ azureuser@lab1:~$ lynx localhost:8080
 4.4 With similar setup to 4.3, start up a bogus ssh server with nc and try to connect to it with ssh(1). Copy-paste the server version string you captured in 3.1 and see if you get a response from the client. What is the client trying to negotiate?
 
 ```bash
-azureuser@lab1:~$ while true; do echo -e "HTTP/1.1 200 OK\n\n $(date)" | nc -l localhost 8080; done
-
 azureuser@lab1:~$ nc -l localhost 8080
 SSH-2.0-OpenSSH_8.2p1 Ubuntu-4ubuntu0.5
 
@@ -246,15 +295,18 @@ This adds a box with the given address to Vagrant. The address can be one of thr
 2.File path or HTTP URL to a box in a catalog. For HTTP, basic authentication is supported and http_proxy environmental variables are respected. HTTPS is also supported.
 
 3.URL directly a box file. In this case, you must specify a --name flag (see below) and versioning/updates will not work.
+
+
+vagrant box add hashicorp/bionic64
 ```
 
 5.3 Show the provisioning part of your sample code and explain it?
 ```
-subconfig.vm.provision "file", source: "~/.gitconfig", destination: ".gitconfig"
-
-subconfig.vm.synced_folder "src/", "/srv/website"
+subconfig.vm.provision "file", source: "~/.ssh/id_rsa.pub", destination: "~/.ssh/me.pub"
+config.vm.synced_folder "sync_folder", "/sync_folder"
 
 subconfig.vm.provision "shell", inline: <<-SHELL
+    cat /home/vagrant/.ssh/me.pub >> /home/vagrant/.ssh/authorized_keys
     sudo echo "192.168.1.2 lab2" | sudo tee -a /etc/hosts
     sudo echo "192.168.2.1 lab3" | sudo tee -a /etc/hosts
     sudo apt install net-tools
