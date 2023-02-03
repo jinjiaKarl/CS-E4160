@@ -10,6 +10,131 @@
                             +
                         http request
 
+## reqestion
+1.1 Serve a default web page using Apache2 on lab2
+` sudo systemctl start apache2`
+
+1.2 Show that the web page can be loaded on local browser using SSH port forwarding
+```
+// -p lab2 port, you can find it on vagrant up log
+ssh -NL 8080:localhost:80 vagrant@127.0.0.1 -p 2200
+
+curl 127.0.0.1:8080
+```
+2.1 Provide a working web page with text "Hello World!" on lab3
+```
+npm install express
+node helloworld.js
+```
+2.2 Explain the contents of the helloworld.js file
+
+2.3 What is the node.js event driven? What are the advantages?
+
+
+3.1 Configure SSL for Apache2
+```
+apache2ctl -S # show the current configuration
+a2enmod ssl # enable ssl module
+# vim /etc/apache2/sites-available/default-ssl.conf change certificate location
+sudo a2ensite default-ssl.conf
+
+ssh -NL 8080:localhost:443 vagrant@127.0.0.1 -p 2200
+curl -k https://127.0.0.1:8080
+```
+3.2 What information can a certificate include? What is necessary for it to work in the context of a web server?
+
+
+3.3 What do PKI and requesting a certificate mean?
+
+
+4.1 Enforcing https on lab2
+```
+// use userdir module
+mkdir -p $HOME/public_html/secure_secrets
+vagrant@lab2:~/public_html$ cat > $HOME/public_html/secure_secrets/index.html << EOF
+
+> <html>
+>   <head>
+>     <title>TecMint is Best Site for Linux</title>
+>   </head>
+>   <body>
+>     <h1>TecMint is Best Site for Linux</h1>
+>   </body>
+> </html>
+
+sudo a2enmod userdir
+sudo a2enmod rewrite
+sudo systemctl restart apache2
+
+curl 127.0.0.1/~vagrant/secure_secrets/
+curl -k https://127.0.0.1/~vagrant/secure_secrets/
+
+// use .hsts
+RewriteEngine On
+RewriteCond %{SERVER_PORT} 80
+RewriteRule ^(.*)$ https://127.0.1.1/~vagrant/$1 [R,L]
+
+curl -v -k -L http://127.0.0.1/~vagrant/secure_secrets/
+```
+4.2 What is HSTS?
+
+4.3 When to use .htaccess? In contrast, when not to use it?
+
+5.1 serving both web application from nginx on lab1
+```
+sudo apt update
+sudo apt install nginx -y
+sudo systemctl start nginx
+
+# edit /etc/nginx/sites-available/default
+upstream apache {
+   server lab2:80;
+}
+upstream node {
+  server lab3:8080;
+}
+server {
+    location /apache {
+       proxy_pass http://apache/;
+    }
+    location /node {
+       proxy_pass http://node/;
+    }
+}
+
+curl http://lab1/apache
+curl http://lab1/node
+```
+
+5.2 Explain the contents of the nginx configuration file
+
+5.3 What is commonly the primary purpose of an nginx server and why?
+
+6.1 using nmap, detect the os version, php version, apache version and open ports
+```
+root@lab2:/var/www/html/dvwa/config# nmap -sV -sU -sS -p- -T5 192.168.1.11
+Starting Nmap 7.80 ( https://nmap.org ) at 2023-02-03 21:53 UTC
+Nmap scan report for lab2 (192.168.1.11)
+Host is up (0.0000030s latency).
+Not shown: 131067 closed ports
+PORT    STATE SERVICE  VERSION
+22/tcp  open  ssh      OpenSSH 8.2p1 Ubuntu 4ubuntu0.5 (Ubuntu Linux; protocol 2.0)
+80/tcp  open  http     Apache httpd 2.4.41 ((Ubuntu))
+443/tcp open  ssl/http Apache httpd 2.4.41 ((Ubuntu))
+Service Info: OS: Linux; CPE: cpe:/o:linux:linux_kernel
+
+Service detection performed. Please report any incorrect results at https://nmap.org/submit/ .
+Nmap done: 1 IP address (1 host up) scanned in 13.52 seconds
+
+
+php -v
+```
+
+6.2 using nikto, to detect vulnerabilities on lab2
+```
+sudo apt-get install nikto -y
+nikto -h 127.0.1.1 -p 80
+```
 
 ## Lab1
 ```bash
