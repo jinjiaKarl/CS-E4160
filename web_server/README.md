@@ -69,14 +69,19 @@ sudo systemctl restart apache2
 curl 127.0.0.1/~vagrant/secure_secrets/
 curl -k https://127.0.0.1/~vagrant/secure_secrets/
 
-// use .hsts
+// use  
+// https://httpd.apache.org/docs/2.4/mod/mod_rewrite.html#rewriterule
+// R: redirect default 302
+// L: Stop the rewriting process immediately and don't apply any more rules. 
 RewriteEngine On
 RewriteCond %{SERVER_PORT} 80
-RewriteRule ^(.*)$ https://127.0.1.1/~vagrant/$1 [R,L]
+#RewriteRule ^(.*)$ https://127.0.0.1/~vagrant/$1 [R,L]
+RewriteRule ^(.*)$ https://%{HTTP_HOST}%{REQUEST_URI} [L,R=301]
+
 
 curl -v -k -L http://127.0.0.1/~vagrant/secure_secrets/
 ```
-4.2 What is HSTS?
+4.2 What is c?
 
 4.3 When to use .htaccess? In contrast, when not to use it?
 
@@ -95,10 +100,11 @@ upstream node {
 }
 server {
     location /apache {
-       proxy_pass http://apache/;
+      rewrite /apache(/|$)(.*) /$2 break;
+      proxy_pass http://apache;
     }
     location /node {
-       proxy_pass http://node/;
+      proxy_pass http://node/;
     }
 }
 
@@ -112,19 +118,37 @@ curl http://lab1/node
 
 6.1 using nmap, detect the os version, php version, apache version and open ports
 ```
-root@lab2:/var/www/html/dvwa/config# nmap -sV -sU -sS -p- -T5 192.168.1.11
-Starting Nmap 7.80 ( https://nmap.org ) at 2023-02-03 21:53 UTC
+# https://nmap.org/nsedoc/scripts/http-php-version.html
+# mysql is configured to only login locally(127.0.0.1) default.
+root@lab1:~# nmap -sV -A  -sS -p- -T5 --script=http-php-version lab2
 Nmap scan report for lab2 (192.168.1.11)
-Host is up (0.0000030s latency).
-Not shown: 131067 closed ports
-PORT    STATE SERVICE  VERSION
-22/tcp  open  ssh      OpenSSH 8.2p1 Ubuntu 4ubuntu0.5 (Ubuntu Linux; protocol 2.0)
-80/tcp  open  http     Apache httpd 2.4.41 ((Ubuntu))
-443/tcp open  ssl/http Apache httpd 2.4.41 ((Ubuntu))
+Host is up (0.00077s latency).
+Not shown: 65532 closed ports
+PORT    STATE SERVICE VERSION
+22/tcp  open  ssh     OpenSSH 8.2p1 Ubuntu 4ubuntu0.5 (Ubuntu Linux; protocol 2.0)
+80/tcp  open  http    Apache httpd 2.4.41 ((Ubuntu))
+|_http-server-header: Apache/2.4.41 (Ubuntu)
+|_http-title: Apache2 Ubuntu Default Page: It works
+443/tcp open  ssl/ssl Apache httpd (SSL-only mode)
+|_http-server-header: Apache/2.4.41 (Ubuntu)
+|_http-title: Apache2 Ubuntu Default Page: It works
+| ssl-cert: Subject: commonName=\xC3\xA8\xC2\x9Clab2/organizationName=Network/stateOrProvinceName=Espoo/countryName=FI
+| Not valid before: 2023-02-03T20:48:12
+|_Not valid after:  2024-02-03T20:48:12
+| tls-alpn:
+|_  http/1.1
+MAC Address: 08:00:27:AF:0A:BC (Oracle VirtualBox virtual NIC)
+Aggressive OS guesses: Linux 2.6.32 (96%), Linux 3.2 - 4.9 (96%), Linux 2.6.32 - 3.10 (96%), Linux 3.4 - 3.10 (95%), Synology DiskStation Manager 5.2-5644 (95%), Linux 3.1 (95%), Linux 3.2 (95%), AXIS 210A or 211 Network Camera (Linux 2.6.17) (94%), Netgear RAIDiator 4.2.28 (94%), Linux 2.6.32 - 2.6.35 (94%)
+No exact OS matches for host (test conditions non-ideal).
+Network Distance: 1 hop
 Service Info: OS: Linux; CPE: cpe:/o:linux:linux_kernel
 
-Service detection performed. Please report any incorrect results at https://nmap.org/submit/ .
-Nmap done: 1 IP address (1 host up) scanned in 13.52 seconds
+TRACEROUTE
+HOP RTT     ADDRESS
+1   0.77 ms lab2 (192.168.1.11)
+
+OS and Service detection performed. Please report any incorrect results at https://nmap.org/submit/ .
+Nmap done: 1 IP address (1 host up) scanned in 29.06 seconds
 
 
 php -v
@@ -133,7 +157,51 @@ php -v
 6.2 using nikto, to detect vulnerabilities on lab2
 ```
 sudo apt-get install nikto -y
-nikto -h 127.0.1.1 -p 80
+nikto -h http://lab2/dvwa
+root@lab1:/etc/nginx/sites-available# nikto -h http://lab2
+- Nikto v2.1.5
+---------------------------------------------------------------------------
++ Target IP:          192.168.1.11
++ Target Hostname:    lab2
++ Target Port:        80
++ Start Time:         2023-02-04 11:54:36 (GMT0)
+---------------------------------------------------------------------------
++ Server: Apache/2.4.41 (Ubuntu)
++ Server leaks inodes via ETags, header found with file /, fields: 0x2aa6 0x5f3d1914cfc39
++ The anti-clickjacking X-Frame-Options header is not present.
++ No CGI Directories found (use '-C all' to force check all possible dirs)
++ Allowed HTTP Methods: HEAD, GET, POST, OPTIONS
+^Croot@lab1:/etc/nginx/sites-available# nikto -h http://lab2/dvwa
+- Nikto v2.1.5
+---------------------------------------------------------------------------
++ Target IP:          192.168.1.11
++ Target Hostname:    lab2
++ Target Port:        80
++ Start Time:         2023-02-04 11:55:32 (GMT0)
+---------------------------------------------------------------------------
++ Server: Apache/2.4.41 (Ubuntu)
++ Cookie security created without the httponly flag
++ Cookie PHPSESSID created without the httponly flag
++ The anti-clickjacking X-Frame-Options header is not present.
++ No CGI Directories found (use '-C all' to force check all possible dirs)
++ Server leaks inodes via ETags, header found with file /dvwa/robots.txt, fields: 0x1a 0x5f378d82ce800
++ File/dir '/' in robots.txt returned a non-forbidden or redirect HTTP code (200)
++ "robots.txt" contains 1 entry which should be manually viewed.
++ Allowed HTTP Methods: HEAD, GET, POST, OPTIONS
++ DEBUG HTTP verb may show server debugging information. See http://msdn.microsoft.com/en-us/library/e8z01xdh%28VS.80%29.aspx for details.
++ OSVDB-3268: /dvwa/config/: Directory indexing found.
++ /dvwa/config/: Configuration information may be available remotely.
++ OSVDB-3233: /dvwa/phpinfo.php: Contains PHP configuration information
++ OSVDB-3268: /dvwa/tests/: Directory indexing found.
++ OSVDB-3092: /dvwa/tests/: This might be interesting...
++ OSVDB-3268: /dvwa/database/: Directory indexing found.
++ OSVDB-3093: /dvwa/database/: Databases? Really??
++ OSVDB-3268: /dvwa/docs/: Directory indexing found.
++ /dvwa/login.php: Admin login page/section found.
++ 6544 items checked: 0 error(s) and 17 item(s) reported on remote host
++ End Time:           2023-02-04 11:55:58 (GMT0) (26 seconds)
+---------------------------------------------------------------------------
++ 1 host(s) tested
 ```
 
 ## Lab1
@@ -203,7 +271,7 @@ openssl genrsa -out apache.key 2048 # generate ca private key
 # The private key file contains both the private key and the public key. You can extract your public key from your private key file
 openssl rsa -in apache.key -pubout -out apache_public.key
 # show the content of the private key
-openssl rsa -text -in ca.key -noout
+openssl rsa -text -in apache.key -noout
 
 # generate a certificate signing request (CSR)
 openssl req -new -key apache.key -out apache.csr
@@ -230,7 +298,9 @@ openssl x509 -text -noout -in apache.crt
 
 
 # using one command to generate a self-signed certificate
-openssl req -newkey rsa:2048 -keyout domain.key -x509 -days 365 -out domain.crt
+# -batch skip all configuration, use default info
+# 
+openssl req -batch -newkey rsa:2048 -keyout domain.key -x509 -days 365 -out domain.crt
 
 # 
 # reference: https://www.baeldung.com/openssl-self-signed-cert
@@ -382,7 +452,8 @@ When to use .htaccess? In contrast, when not to use it?
 
 It should be used when you need to make configuration changes to your website or directory that are not possible through the main Apache configuration file, such as when you don't have access to the main configuration file, or when you need to make changes to a specific directory on your website.
 
-It should not be used when making changes that can be made through the main Apache configuration file, as changes made in .htaccess can have a negative impact on server performance. Additionally, it is not recommended to use .htaccess on a production server with many concurrent connections, as it can slow down the server.
+
+It should not be used when making changes that can be made through the main Apache configuration file(require root priviledge), as changes made in .htaccess can have a negative impact on server performance. Additionally, it is not recommended to use .htaccess on a production server with many concurrent connections, as it can slow down the server.
 ```
 
 Show that the web page can be loaded on local browser (your machine or Niksula) using SSH port forwarding.
