@@ -31,6 +31,7 @@ node helloworld.js
 2.3 What is the node.js event driven? What are the advantages?
 ```
 # https://medium.com/geekculture/understand-the-node-js-event-loop-22f74906b77f
+A callback function ( called an event handler) is called when an event is triggered.
 In Node.js, "event-driven" refers to the way in which the program handles input/output (I/O) operations. Instead of waiting for an I/O operation to complete before moving on to the next task, Node.js allows other code to continue running while an I/O operation is taking place. When the I/O operation is finished, an "event" is emitted, and a callback function is invoked to handle the results of the operation.
 
 There are several advantages to this approach:
@@ -45,6 +46,15 @@ In summary, event-driven approach in Node.js allows for non-blocking I/O, high p
 
 3.1 Configure SSL for Apache2
 ```
+# generate certificate
+openssl genrsa -out apache.key 2048
+openssl rsa -in apache.key -pubout -out apache_public.key
+openssl req -new -key apache.key -out apache.csr
+openssl x509 -signkey apache.key -in apache.csr -req -days 365 -out apache.crt
+openssl x509 -text -noout -in apache.crt
+# using one command
+openssl req -batch -newkey rsa:2048 -keyout domain.key -x509 -days 365 -out domain.crt
+
 apache2ctl -S # show the current configuration
 a2enmod ssl # enable ssl module
 # vim /etc/apache2/sites-available/default-ssl.conf change certificate location
@@ -118,6 +128,7 @@ Certificate:
 
 3.3 What do PKI and requesting a certificate mean?
 ```
+# https://www.okta.com/identity-101/public-key-infrastructure/
 PKI (Public Key Infrastructure) refers to the system of digital certificates, certificate authorities (CAs), and other registration authorities that verify and authenticate the validity of public keys used for encrypting communications and digitally signing documents.
 
 When requesting a certificate, it typically means that an individual or organization is requesting a digital certificate from a certificate authority (CA) to prove their identity or the authenticity of their website. This certificate can be used to establish a secure, encrypted connection (e.g. HTTPS) between the user's web browser and the website, or to digitally sign electronic documents, among other uses.
@@ -149,7 +160,7 @@ curl -k https://127.0.0.1/~vagrant/secure_secrets/
 
 // use  
 // https://httpd.apache.org/docs/2.4/mod/mod_rewrite.html#rewriterule
-// R: redirect default 302
+// R: redirect default 302 Moved Temporarily; 301 Moved Permanently
 // L: Stop the rewriting process immediately and don't apply any more rules. 
 RewriteEngine On
 RewriteCond %{SERVER_PORT} 80
@@ -185,10 +196,10 @@ It should be used when you need to make configuration changes to your website or
 
 However, .htaccess should not be used in the following cases:
 
-1.When performance is a concern: The Apache web server has to process .htaccess files on every request, which can slow down performance.
+1.When `performance` is a concern: The Apache web server has to process .htaccess files on every request, which can slow down performance.
 2.On high-traffic websites: The same reason as above, the processing of .htaccess files can slow down the server with high traffic.
 3.On servers that do not support .htaccess: Some web hosting environments do not allow the use of .htaccess files, or have them disabled by default.
-4.When making global configuration changes: .htaccess is intended for local configuration overrides, so making global changes to the server configuration should be done in the main Apache configuration file.
+4.When `making global configuration` changes: .htaccess is intended for local configuration overrides, so making global changes to the server configuration should be done in the main Apache configuration file.
 
 ```
 
@@ -226,8 +237,10 @@ The ngx_http_upstream_module module is used to define groups of servers that can
 The group can be used as load balancers.
 
 # https://nginx.org/en/docs/http/ngx_http_core_module.html#location
+Sets configuration depending on a request URI. A location can either be defined by a prefix string, or by a regular expression. 
 
 # https://nginx.org/en/docs/http/ngx_http_proxy_module.html#proxy_pass
+Sets the protocol and address of a proxied server and an optional URI to which a location should be mapped.
 
 # chang nginx log file
 # https://serverfault.com/questions/871305/how-do-you-log-proxy-pass-in-the-nginx-access-log
@@ -237,9 +250,11 @@ nginx -t
 
 5.3 What is commonly the primary purpose of an nginx server and why?
 ```
-The primary purpose of an Nginx server is to act as a reverse proxy and load balancer. This means that Nginx sits in front of one or more web servers and handles incoming requests from clients (such as browsers), forwarding them on to the appropriate web server and returning the response to the client.
+The primary purpose of an Nginx server is to act as `a reverse proxy and load balancer`. This means that Nginx sits in front of one or more web servers and handles incoming requests from clients (such as browsers), forwarding them on to the appropriate web server and returning the response to the client.
 
-Because it is designed to handle a large number of concurrent connections and has a small memory footprint. This makes it well-suited for high-traffic websites and web applications that need to handle a lot of incoming requests. Additionally, Nginx can handle many other functions such as caching, SSL/TLS termination, and serving static content.
+Because it is designed to handle a large number of concurrent connections and has a small memory footprint. This makes it well-suited for high-traffic websites and web applications that need to handle a lot of incoming requests. Higher performance(event-driven+Epoll+multi cpu)
+
+Additionally, Nginx can handle many other functions such as caching, SSL/TLS termination, and serving static content.
 
 Another reason is its ability to handle a wide range of protocols, including HTTP, HTTPS, TCP and UDP. This makes it flexible enough to handle different types of web traffic and applications, such as web servers, email servers, and real-time streaming applications.
 ```
@@ -247,8 +262,9 @@ Another reason is its ability to handle a wide range of protocols, including HTT
 6.1 using nmap, detect the os version, php version, apache version and open ports
 ```
 # https://nmap.org/nsedoc/scripts/http-php-version.html
+# PHP versions after 5.5.0 do not respond to these queries.
 # mysql is configured to only login locally(127.0.0.1) default.
-root@lab1:~# nmap -sV -A  -sS -p- -T5 --script=http-php-version lab2
+root@lab1:~# nmap -sV -A -sS -p- -T5 --script=http-php-version lab2
 Nmap scan report for lab2 (192.168.1.11)
 Host is up (0.00077s latency).
 Not shown: 65532 closed ports
