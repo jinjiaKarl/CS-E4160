@@ -10,7 +10,7 @@
                             +
                         http request
 
-## reqestion
+## question
 1.1 Serve a default web page using Apache2 on lab2
 ` sudo systemctl start apache2`
 
