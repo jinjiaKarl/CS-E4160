@@ -322,6 +322,135 @@ transactions, TSIG provides transaction-level security while SIG(0) provides
 end-to-end security for the entire DNS data through the use of public-key
 cryptography.
 
+7.1 Based on the dig-queries, how does Pi-hole block domains on a DNS level?
+
+```
+# refer to https://www.techaddressed.com/tutorials/basic-pi-hole-config/
+systemctl stop bind9 # stop bind9；因为bind9会监听53端口，所以pihole无法监听53端口
+# 设置upstream DNS为google的DNS 8.8.8.8
+curl -sSL https://install.pi-hole.net | bash 
+pihole -a -p # set password
+pihole restartdns
+
+systemctl status pihole-FTL.service # 查看pihole的运行状态
+
+# set web interface
+systemctl restart lighttpd
+vim /etc/lighttpd/lighttpd.conf # 可以调整http运行的端口
+
+ssh -NL 8081:localhost:80 jinjia@192.168.64.13
+
+# http://localhost:8081/admin/   # 打开web界面进行配置
+# Clients 添加 可以允许访问client的IP地址
+# Domains 添加 google.com到blacklist
+jinjia@work:~$ dig @192.168.64.13 google.com
+
+; <<>> DiG 9.18.1-1ubuntu1.3-Ubuntu <<>> @192.168.64.13 google.com
+; (1 server found)
+;; global options: +cmd
+;; Got answer:
+;; ->>HEADER<<- opcode: QUERY, status: NOERROR, id: 13304
+;; flags: qr aa rd ra; QUERY: 1, ANSWER: 1, AUTHORITY: 0, ADDITIONAL: 1
+
+;; OPT PSEUDOSECTION:
+; EDNS: version: 0, flags:; udp: 4096
+;; QUESTION SECTION:
+;google.com.                    IN      A
+
+;; ANSWER SECTION:
+google.com.             2       IN      A       0.0.0.0
+
+;; Query time: 4 msec
+;; SERVER: 192.168.64.13#53(192.168.64.13) (UDP)
+;; WHEN: Thu Feb 09 16:57:22 UTC 2023
+;; MSG SIZE  rcvd: 55
+
+
+# 去掉blacklist
+jinjia@work:~$ dig @192.168.64.13 google.com
+
+; <<>> DiG 9.18.1-1ubuntu1.3-Ubuntu <<>> @192.168.64.13 google.com
+; (1 server found)
+;; global options: +cmd
+;; Got answer:
+;; ->>HEADER<<- opcode: QUERY, status: NOERROR, id: 16590
+;; flags: qr rd ra; QUERY: 1, ANSWER: 1, AUTHORITY: 0, ADDITIONAL: 1
+
+;; OPT PSEUDOSECTION:
+; EDNS: version: 0, flags:; udp: 4096
+;; QUESTION SECTION:
+;google.com.                    IN      A
+
+;; ANSWER SECTION:
+google.com.             62      IN      A       142.251.39.110
+
+;; Query time: 0 msec
+;; SERVER: 192.168.64.13#53(192.168.64.13) (UDP)
+;; WHEN: Thu Feb 09 17:01:31 UTC 2023
+;; MSG SIZE  rcvd: 55
+```
+
+The difference of Pi-hole and bind9:
+https://www.reddit.com/r/homelab/comments/ln8esx/bind_vs_pihole/
+
+Pi-hole block mode: https://docs.pi-hole.net/ftldns/blockingmode/
+
+Pi-hole works by intercepting DNS queries and blocking them if the domain name
+matches one of the entries in its block list. It does this by operating as a DNS
+server, and when a client makes a DNS query, Pi-hole will process the query and
+check if the domain name being requested is on the block list. If it is, Pi-hole
+will return a fake, non-existent IP address, effectively blocking the connection
+to that domain.
+
+The way Pi-hole implements this is by running a DNS server that listens for
+incoming queries from clients on the network. When a client makes a query,
+Pi-hole will receive the request, process it, and then either return the IP
+address of the domain being requested or a fake, non-existent IP address if the
+domain is on the block list. The block list can be customized, so you can add or
+remove entries as needed.
+
+In summary, Pi-hole works by blocking domains at the DNS level by intercepting
+DNS queries and returning a fake, non-existent IP address for blocked domains.
+This effectively blocks connections to those domains, as the client will not be
+able to resolve the IP address and therefore will not be able to establish a
+connection.
+
+7.2 How could you use Pi-hole in combination with your own DNS server, such as
+your caching-only nameserver?
+
+```
+https://docstore.mik.ua/orelly/networking_2ndEd/dns/ch10_15.htm
+
+pihole-FTL port: https://docs.pi-hole.net/main/prerequisites/
+FTL means: "Faster than Light"
+
+vim /etc/bind/named.conf.options // 将bind9的端口设置为5353 listen-on port 5353 { 127.0.0.1; 192.168.64.13;};
+# 将pihole设置为upstream DNS设置为bind9
+```
+
+You can use Pi-hole in combination with your own DNS server by configuring your
+DNS server to forward all DNS queries to Pi-hole. This way, your DNS server will
+act as a caching-only nameserver, storing the responses from Pi-hole in its
+cache for a certain amount of time to reduce the number of queries it needs to
+make.
+
+Here's a simple example of how you can set this up:
+
+Install Pi-hole on a separate server or device. Configure your caching-only
+nameserver to forward all DNS queries to Pi-hole. This can typically be done by
+adding a forwarder to your DNS configuration file, such as named.conf. On your
+clients, configure the DNS server to use the IP address of your caching-only
+nameserver. With this setup, your caching-only nameserver will receive all DNS
+queries from clients, cache the responses from Pi-hole, and return the cached
+responses to clients for future queries. This will help reduce the number of
+queries that need to be made to Pi-hole, making the system more efficient.
+
+In addition, Pi-hole will still be able to block unwanted domains, as it will
+receive all the DNS queries from your caching-only nameserver and return the
+appropriate response. This means that you will be able to take advantage of the
+domain blocking functionality provided by Pi-hole, as well as the caching
+capabilities provided by your own DNS server.
+
 ## Basic DNS concepts
 
 ```
@@ -354,3 +483,14 @@ bind9 concepts
 
 Transaction Signatures (TSIG) provide a secure method for communicating from a
 primary to a secondary Domain Name server (DNS).
+
+```
+# blogs
+https://blog.csdn.net/wangye1989_0226/article/details/72773290
+
+https://blog.51cto.com/aolens/1536630
+
+https://www.zytrax.com/books/dns/ch9/delegate.html
+
+https://www.cnblogs.com/doherasyang/p/14464999.html
+```

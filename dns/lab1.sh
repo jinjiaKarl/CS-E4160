@@ -17,6 +17,7 @@ forwarders { \
 }; \
 recursion yes; \
 allow-query { goodclients; }; \
+//listen-on port 5353 { 127.0.0.1; 192.168.64.13;}; \
 ' /etc/bind/named.conf.options
 
 
