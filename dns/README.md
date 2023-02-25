@@ -17,8 +17,10 @@ sudo apt update
 sudo apt-get install bind9 bind9utils -y
 systemctl start named
 
-
+netstat -nap | grep 2882
+ 
 systemctl stop systemd-resolved
++
 
 # /etc/bind
 cp /etc/bind/named.conf.options{,.bak}
@@ -31,8 +33,8 @@ dig @192.168.64.13 www.alibaba.com
 
 # view bind9 cache https://linuxconfig.org/how-to-view-and-clear-bind-dns-server-s-cache-on-linux
 rndc dumpdb -cache
-grep alibaba /var/named/data/cache_dump.db
-rndc dumpdb flush
+grep alibaba /var/named/data/cache_dump.db  // /var/cache/bind
+rndc flush
 ```
 
 2.2 What is a recursive query? How does it differ from an iterative query?
@@ -59,7 +61,7 @@ individual DNS servers.
 # refer to https://blog.csdn.net/networken/article/details/120908256
 # check configuration
 named-checkconf
-named-checkzone insec ./db.64.168.192.in-addr.arpa
+named-checkzone insec ./db.1.168.192.in-addr.arpa
 named-checkzone insec ./db.insec
 
 
@@ -70,28 +72,28 @@ named-checkzone insec ./db.insec
 
 ```
 # test
-root@lab1:/etc/bind# dig @127.0.0.1 www.ns1.insec
+root@lab1:/etc/bind# dig @192.168.1.10 host1.insec
 
-; <<>> DiG 9.16.1-Ubuntu <<>> @127.0.0.1 www.ns1.insec
+; <<>> DiG 9.16.1-Ubuntu <<>> @192.168.1.10 host1.insec
 ; (1 server found)
 ;; global options: +cmd
 ;; Got answer:
-;; ->>HEADER<<- opcode: QUERY, status: NXDOMAIN, id: 53171
-;; flags: qr aa rd ra; QUERY: 1, ANSWER: 0, AUTHORITY: 1, ADDITIONAL: 1
+;; ->>HEADER<<- opcode: QUERY, status: NOERROR, id: 23279
+;; flags: qr aa rd ra; QUERY: 1, ANSWER: 1, AUTHORITY: 0, ADDITIONAL: 1
 
 ;; OPT PSEUDOSECTION:
 ; EDNS: version: 0, flags:; udp: 4096
-; COOKIE: ba5121ed65655a3d0100000063e1389a40449c3e5828f9bd (good)
+; COOKIE: 0f7ea12d9e3878900100000063fa6bc6134ebbb6c7ee5d1c (good)
 ;; QUESTION SECTION:
-;www.ns1.insec.                 IN      A
+;host1.insec.                   IN      A
 
-;; AUTHORITY SECTION:
-insec.                  60      IN      SOA     insec. hostmaster.insec. 2022120100 60 60 60 60
+;; ANSWER SECTION:
+host1.insec.            60      IN      A       192.168.1.88
 
 ;; Query time: 0 msec
-;; SERVER: 127.0.0.1#53(127.0.0.1)
-;; WHEN: Mon Feb 06 17:27:54 UTC 2023
-;; MSG SIZE  rcvd: 122
+;; SERVER: 192.168.1.10#53(192.168.1.10)
+;; WHEN: Sat Feb 25 20:12:54 UTC 2023
+;; MSG SIZE  rcvd: 84
 ```
 
 3.3 How would you add an IPv6 address entry to a zone file?
@@ -126,35 +128,42 @@ cat insec.zone.out
 ```
 type: slave
 increment serial number on master
+
+// update the configuration
+named-checkzone insec ./db.1.168.192.in-addr.arpa
+named-checkzone insec ./db.insec
+
+// reboot the slave to reload the latest configuration
+root@lab3:/etc/bind# systemctl restart bind9
 ```
 
 4.3 Provide the output of dig(1) for a successful query from the slave server.
 Are there any differences to the queries from the master?
 
 ```
-dig SOA +multiline  www.baidu.com
-root@lab2:/etc/bind# dig @192.168.64.15  www.ns1.insec
+root@lab2:/var/cache/bind# dig @192.168.1.11 ns1.insec
 
-; <<>> DiG 9.16.1-Ubuntu <<>> @192.168.64.15 www.ns1.insec
+; <<>> DiG 9.16.1-Ubuntu <<>> @192.168.1.11 ns1.insec
 ; (1 server found)
 ;; global options: +cmd
 ;; Got answer:
-;; ->>HEADER<<- opcode: QUERY, status: NXDOMAIN, id: 37354
-;; flags: qr aa rd ra; QUERY: 1, ANSWER: 0, AUTHORITY: 1, ADDITIONAL: 1
+;; ->>HEADER<<- opcode: QUERY, status: NOERROR, id: 29484
+;; flags: qr aa rd ra; QUERY: 1, ANSWER: 1, AUTHORITY: 0, ADDITIONAL: 1
 
 ;; OPT PSEUDOSECTION:
 ; EDNS: version: 0, flags:; udp: 4096
-; COOKIE: 078b096e1165c2bc0100000063e155f1ae730e476674519b (good)
+; COOKIE: 9baf5460adde9d9a0100000063fa71b0bad3d90bf0900165 (good)
 ;; QUESTION SECTION:
-;www.ns1.insec.                 IN      A
+;ns1.insec.                     IN      A
 
-;; AUTHORITY SECTION:
-insec.                  60      IN      SOA     insec. hostmaster.insec. 2022120102 60 60 60 60
+;; ANSWER SECTION:
+ns1.insec.              60      IN      A       192.168.1.10
 
 ;; Query time: 0 msec
-;; SERVER: 192.168.64.15#53(192.168.64.15)
-;; WHEN: Mon Feb 06 19:33:05 UTC 2023
-;; MSG SIZE  rcvd: 122
+;; SERVER: 192.168.1.11#53(192.168.1.11)
+;; WHEN: Sat Feb 25 20:38:08 UTC 2023
+;; MSG SIZE  rcvd: 82
+
 
 
 In DNS, a slave server (also known as a secondary server) obtains DNS information from a master (or primary) server through a process called zone transfer. The slave server uses this information to answer queries for a specific portion of the DNS namespace, called a zone.
@@ -171,77 +180,76 @@ There should be no difference in the query process between a master and a slave 
 servers.
 
 ```
-root@lab1:/etc/bind# dig @127.0.0.1 ns2.not.insec.
+root@lab1:/etc/bind# dig @192.168.1.10 ns2.not.insec
 
-; <<>> DiG 9.16.1-Ubuntu <<>> @127.0.0.1 ns2.not.insec.
+; <<>> DiG 9.16.1-Ubuntu <<>> @192.168.1.10 ns2.not.insec
 ; (1 server found)
 ;; global options: +cmd
 ;; Got answer:
-;; ->>HEADER<<- opcode: QUERY, status: NOERROR, id: 50054
+;; ->>HEADER<<- opcode: QUERY, status: NOERROR, id: 55600
 ;; flags: qr rd ra; QUERY: 1, ANSWER: 1, AUTHORITY: 0, ADDITIONAL: 1
 
 ;; OPT PSEUDOSECTION:
 ; EDNS: version: 0, flags:; udp: 4096
-; COOKIE: 2e8ece9cae4e0fc10100000063e3f84a3a92f98949e808df (good)
+; COOKIE: 3d2bbf7c042d4cb60100000063fa71eb6d485ab449f4a909 (good)
 ;; QUESTION SECTION:
 ;ns2.not.insec.                 IN      A
 
 ;; ANSWER SECTION:
-ns2.not.insec.          60      IN      A       192.168.64.15
-
-;; Query time: 4 msec
-;; SERVER: 127.0.0.1#53(127.0.0.1)
-;; WHEN: Wed Feb 08 19:30:18 UTC 2023
-;; MSG SIZE  rcvd: 86
-
-
-
-root@lab2:/etc/bind# dig @127.0.0.1 ns2.not.insec.
-
-; <<>> DiG 9.16.1-Ubuntu <<>> @127.0.0.1 ns2.not.insec.
-; (1 server found)
-;; global options: +cmd
-;; Got answer:
-;; ->>HEADER<<- opcode: QUERY, status: NOERROR, id: 64435
-;; flags: qr aa rd ra; QUERY: 1, ANSWER: 1, AUTHORITY: 0, ADDITIONAL: 1
-
-;; OPT PSEUDOSECTION:
-; EDNS: version: 0, flags:; udp: 4096
-; COOKIE: d528ab5ee9ded1930100000063e3f83c86db922f65f0d847 (good)
-;; QUESTION SECTION:
-;ns2.not.insec.                 IN      A
-
-;; ANSWER SECTION:
-ns2.not.insec.          60      IN      A       192.168.64.15
+ns2.not.insec.          41      IN      A       192.168.1.11
 
 ;; Query time: 0 msec
-;; SERVER: 127.0.0.1#53(127.0.0.1)
-;; WHEN: Wed Feb 08 19:30:04 UTC 2023
+;; SERVER: 192.168.1.10#53(192.168.1.10)
+;; WHEN: Sat Feb 25 20:39:07 UTC 2023
 ;; MSG SIZE  rcvd: 86
 
 
 
-root@lab3:/etc/bind# dig @127.0.0.1 ns2.not.insec.
+root@lab2:/var/cache/bind# dig @192.168.1.11 ns2.not.insec
 
-; <<>> DiG 9.16.1-Ubuntu <<>> @127.0.0.1 ns2.not.insec.
+; <<>> DiG 9.16.1-Ubuntu <<>> @192.168.1.11 ns2.not.insec
 ; (1 server found)
 ;; global options: +cmd
 ;; Got answer:
-;; ->>HEADER<<- opcode: QUERY, status: NOERROR, id: 50221
+;; ->>HEADER<<- opcode: QUERY, status: NOERROR, id: 27381
 ;; flags: qr aa rd ra; QUERY: 1, ANSWER: 1, AUTHORITY: 0, ADDITIONAL: 1
 
 ;; OPT PSEUDOSECTION:
 ; EDNS: version: 0, flags:; udp: 4096
-; COOKIE: 3f3dd87783e09a720100000063e3f81d0277d4338c1843e0 (good)
+; COOKIE: 8902a731681adbd70100000063fa720d709fa05ab105c770 (good)
 ;; QUESTION SECTION:
 ;ns2.not.insec.                 IN      A
 
 ;; ANSWER SECTION:
-ns2.not.insec.          60      IN      A       192.168.64.15
+ns2.not.insec.          60      IN      A       192.168.1.11
 
-;; Query time: 3 msec
-;; SERVER: 127.0.0.1#53(127.0.0.1)
-;; WHEN: Wed Feb 08 19:29:33 UTC 2023
+;; Query time: 0 msec
+;; SERVER: 192.168.1.11#53(192.168.1.11)
+;; WHEN: Sat Feb 25 20:39:41 UTC 2023
+;; MSG SIZE  rcvd: 86
+
+
+root@lab3:/var/cache/bind# dig @192.168.2.11 ns2.not.insec
+
+; <<>> DiG 9.16.1-Ubuntu <<>> @192.168.2.11 ns2.not.insec
+; (1 server found)
+;; global options: +cmd
+;; Got answer:
+;; ->>HEADER<<- opcode: QUERY, status: NOERROR, id: 55064
+;; flags: qr aa rd ra; QUERY: 1, ANSWER: 1, AUTHORITY: 0, ADDITIONAL: 1
+
+;; OPT PSEUDOSECTION:
+; EDNS: version: 0, flags:; udp: 4096
+; COOKIE: 95a7cdaa243c35120100000063fa74213e571d0bedfed2e1 (good)
+;; QUESTION SECTION:
+;ns2.not.insec.                 IN      A
+
+;; ANSWER SECTION:
+ns2.not.insec.          60      IN      A       192.168.1.11
+
+;; Query time: 0 msec
+;; SERVER: 192.168.2.11#53(192.168.2.11)
+;; WHEN: Sat Feb 25 20:48:33 UTC 2023
 ;; MSG SIZE  rcvd: 86
 ```
 
@@ -262,38 +270,35 @@ key "keyname" {
 
 
 
+root@lab3:/etc/bind# dig @192.168.1.11 not.insec axfr
 
-root@lab3:/etc/bind# dig @192.168.64.15 not.insec axfr
-
-; <<>> DiG 9.16.1-Ubuntu <<>> @192.168.64.15 not.insec axfr
+; <<>> DiG 9.16.1-Ubuntu <<>> @192.168.1.11 not.insec axfr
 ; (1 server found)
 ;; global options: +cmd
 ; Transfer failed.
 
 
-root@lab3:/etc/bind# dig @192.168.64.15 not.insec axfr
 
-; <<>> DiG 9.16.1-Ubuntu <<>> @192.168.64.15 not.insec axfr
+root@lab3:/etc/bind# vim named.conf
+
+[1]+  Stopped                 vim named.conf
+root@lab3:/etc/bind# dig @192.168.1.11 not.insec axfr -k /etc/bind/keyname.key
+
+; <<>> DiG 9.16.1-Ubuntu <<>> @192.168.1.11 not.insec axfr -k /etc/bind/keyname.key
 ; (1 server found)
 ;; global options: +cmd
-; Transfer failed.
-root@lab3:/etc/bind# dig @192.168.64.15 not.insec axfr  -k /etc/bind/keyname.key
-
-; <<>> DiG 9.16.1-Ubuntu <<>> @192.168.64.15 not.insec axfr -k /etc/bind/keyname.key
-; (1 server found)
-;; global options: +cmd
-not.insec.              60      IN      SOA     ns2.not.insec. not.hostmaster.insec. 2022120200 60 60 60 60
+not.insec.              60      IN      SOA     ns2.not.insec. not.hostmaster.insec. 2022120203 60 60 60 60
 not.insec.              60      IN      NS      ns2.not.insec.
-not.insec.              60      IN      NS      ns3.not.insec.
-host1.not.insec.        60      IN      A       192.168.64.99
-ns2.not.insec.          60      IN      A       192.168.64.15
-ns3.not.insec.          60      IN      A       192.168.64.17
-not.insec.              60      IN      SOA     ns2.not.insec. not.hostmaster.insec. 2022120200 60 60 60 60
-keyname.                0       ANY     TSIG    hmac-sha1. 1675893793 300 20 zwkbSYYs6gPkJQ3wj+/KgcVDO54= 42470 NOERROR 0 
+host1.not.insec.        60      IN      A       192.168.2.99
+ns2.not.insec.          60      IN      A       192.168.1.11
+ns3.not.insec.          60      IN      A       192.168.2.11
+not.insec.              60      IN      SOA     ns2.not.insec. not.hostmaster.insec. 2022120203 60 60 60 60
+keyname.                0       ANY     TSIG    hmac-sha1. 1677358981 300 20 /4I5B/aG097YwojLf5air9NN3ko= 57184 NOERROR 0
 ;; Query time: 4 msec
-;; SERVER: 192.168.64.15#53(192.168.64.15)
-;; WHEN: Wed Feb 08 22:03:13 UTC 2023
-;; XFR size: 7 records (messages 1, bytes 314)
+;; SERVER: 192.168.1.11#53(192.168.1.11)
+;; WHEN: Sat Feb 25 21:03:01 UTC 2023
+;; XFR size: 6 records (messages 1, bytes 300)
+
 ```
 
 6.2 TSIG is one way to implement transaction signatures. DNSSEC describes
@@ -338,18 +343,18 @@ systemctl status pihole-FTL.service # 查看pihole的运行状态
 systemctl restart lighttpd
 vim /etc/lighttpd/lighttpd.conf # 可以调整http运行的端口
 
-ssh -NL 8081:localhost:80 jinjia@192.168.64.13
+ssh -NL 8081:localhost:80 vagrant@127.0.0.1 -p 2222
 
 # http://localhost:8081/admin/   # 打开web界面进行配置
 # Clients 添加 可以允许访问client的IP地址
 # Domains 添加 google.com到blacklist
-jinjia@work:~$ dig @192.168.64.13 google.com
+root@lab1:/etc/bind# dig @192.168.1.10 google.com
 
-; <<>> DiG 9.18.1-1ubuntu1.3-Ubuntu <<>> @192.168.64.13 google.com
+; <<>> DiG 9.16.1-Ubuntu <<>> @192.168.1.10 google.com
 ; (1 server found)
 ;; global options: +cmd
 ;; Got answer:
-;; ->>HEADER<<- opcode: QUERY, status: NOERROR, id: 13304
+;; ->>HEADER<<- opcode: QUERY, status: NOERROR, id: 8767
 ;; flags: qr aa rd ra; QUERY: 1, ANSWER: 1, AUTHORITY: 0, ADDITIONAL: 1
 
 ;; OPT PSEUDOSECTION:
@@ -361,32 +366,32 @@ jinjia@work:~$ dig @192.168.64.13 google.com
 google.com.             2       IN      A       0.0.0.0
 
 ;; Query time: 4 msec
-;; SERVER: 192.168.64.13#53(192.168.64.13) (UDP)
-;; WHEN: Thu Feb 09 16:57:22 UTC 2023
+;; SERVER: 192.168.1.10#53(192.168.1.10)
+;; WHEN: Sat Feb 25 21:58:32 UTC 2023
 ;; MSG SIZE  rcvd: 55
 
 
 # 去掉blacklist
-jinjia@work:~$ dig @192.168.64.13 google.com
+root@lab1:/etc/bind# dig @192.168.1.10 google.com
 
-; <<>> DiG 9.18.1-1ubuntu1.3-Ubuntu <<>> @192.168.64.13 google.com
+; <<>> DiG 9.16.1-Ubuntu <<>> @192.168.1.10 google.com
 ; (1 server found)
 ;; global options: +cmd
 ;; Got answer:
-;; ->>HEADER<<- opcode: QUERY, status: NOERROR, id: 16590
+;; ->>HEADER<<- opcode: QUERY, status: NOERROR, id: 24367
 ;; flags: qr rd ra; QUERY: 1, ANSWER: 1, AUTHORITY: 0, ADDITIONAL: 1
 
 ;; OPT PSEUDOSECTION:
-; EDNS: version: 0, flags:; udp: 4096
+; EDNS: version: 0, flags:; udp: 512
 ;; QUESTION SECTION:
 ;google.com.                    IN      A
 
 ;; ANSWER SECTION:
-google.com.             62      IN      A       142.251.39.110
+google.com.             48      IN      A       142.250.74.142
 
-;; Query time: 0 msec
-;; SERVER: 192.168.64.13#53(192.168.64.13) (UDP)
-;; WHEN: Thu Feb 09 17:01:31 UTC 2023
+;; Query time: 24 msec
+;; SERVER: 192.168.1.10#53(192.168.1.10)
+;; WHEN: Sat Feb 25 21:58:52 UTC 2023
 ;; MSG SIZE  rcvd: 55
 ```
 

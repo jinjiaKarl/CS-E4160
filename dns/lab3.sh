@@ -15,16 +15,18 @@ include "/etc/bind/keyname.key";
 
 zone "not.insec" {
   type slave;
-  masters { 192.168.64.15; };
+  masters { 192.168.1.11; };
   file "/var/cache/bind/db.not.insec";
 };
 
-server 192.168.64.15 {
+server 192.168.1.11 {
   keys {keyname;};
 };
 EOF
 
-sed -i '/options /i \
+sed -i '/options /a \
 recursion yes; \
-allow-query { localhost;192.168.64.0/24; }; \
+allow-query { localhost;192.168.1.0/24; 192.168.2.0/24;}; \
 ' /etc/bind/named.conf.options
+
+systemctl restart bind9 

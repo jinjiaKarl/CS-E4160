@@ -16,29 +16,31 @@ EOF
 sudo tee -a /etc/bind/named.conf > /dev/null <<EOF
 zone "insec" {
     type slave;
-    masters { 192.168.64.13; };
+    masters { 192.168.1.10; };
+    // masters { 192.168.1.10 port 5353; };
     file "/var/cache/bind/db.insec";
 };
 
-zone "64.168.192.in-addr.arpa" {
+zone "1.168.192.in-addr.arpa" {
     type slave;
-    masters { 192.168.64.13; };
-    file "/var/cache/bind/db.64.168.192.in-addr.arpa";
+    masters { 192.168.1.10; };
+    // masters { 192.168.1.10 port 5353; };
+    file "/var/cache/bind/db.1.168.192.in-addr.arpa";
 };
 
 zone "not.insec" {
   type master;
   file "/etc/bind/db.not.insec";
-  allow-transfer { key "keyname"; };
-  #allow-transfer { 192.168.64.17; };
-  #also-notify { 192.168.64.17; };
+  allow-transfer { key "keyname";};
+  // allow-transfer { 192.168.2.11; }
+  // also-notify { 192.168.2.11; };
 };
 
 include "/etc/bind/keyname.key";
 EOF
 
 sudo tee -a /etc/bind/db.not.insec > /dev/null <<EOF
-$TTL 60
+\$TTL 60
 @ IN SOA ns2.not.insec. not.hostmaster.insec. (
       2022120200 ; Serial
       60 ; Refresh
@@ -48,13 +50,18 @@ $TTL 60
 )
 
 @ IN NS ns2.not.insec.
-@ IN NS ns3.not.insec.
-ns2 IN A 192.168.64.15
-ns3 IN A 192.168.64.17
-host1.not.insec. IN A 192.168.64.99
+
+ns2 IN A 192.168.1.11
+ns3 IN A 192.168.2.11
+host1.not.insec. IN A 192.168.2.99
 EOF
 
-sed -i '/options /i \
+sed -i '/options /a \
 recursion yes; \
-allow-query { localhost;192.168.64.0/24; }; \
+allow-query { localhost;192.168.1.0/24; 192.168.2.0/24;}; \
 ' /etc/bind/named.conf.options
+
+
+cd /etc/bind
+named-checkzone not.insec ./db.not.insec
+systemctl restart bind9 
