@@ -2,24 +2,20 @@
 
 2.1 Caching-only nameserver configuration
 
-Configure the nameserver to forward all queries for which it does not have a
-cached answer to Google's public nameserver (8.8.8.8). Only allow queries and
-recursion from local network.
+Configure the nameserver to forward all queries for which it does not have a cached answer to Google's public nameserver (8.8.8.8). Only allow queries and recursion from local network.
 
-Start your nameserver and watch the logfile /var/log/syslog for any error
-messages. Check that you can resolve addresses through your own nameserver from
-the client machine. You can use dig(1) to do the lookups.
+Start your nameserver and watch the logfile /var/log/syslog for any error messages. Check that you can resolve addresses through your own nameserver from the client machine. You can use dig(1) to do the lookups.
 
 ```
-# refer to https://www.digitalocean.com/community/tutorials how-to-configure-bind-as-a-caching-or-forwarding-dns-server-on-ubuntu-14-04
-sudo apt update
-# install name server daemon, named, the Bind administration tool, rndc
-sudo apt-get install bind9 bind9utils -y
-systemctl start named
+# refer to https://www.digitalocean.com/community/tutorials/how-to-configure-bind-as-a-caching-or-forwarding-dns-server-on-ubuntu-14-04
+
+1. install bind9
+2. add forwarders, allow-recursion, allow-query, recursion
+3. restart bind9
+
 
 netstat -nap | grep 2882
- 
-#systemctl stop systemd-resolved
+ss -lntp | grep 2882
 
 
 # /etc/bind
@@ -82,15 +78,19 @@ individual DNS servers.
 
 3.1 Configure ns1 to be the primary master for .insec domain.
 
+	
+Explain your configuration.
 ```
 # refer to https://blog.csdn.net/networken/article/details/120908256
-# check configuration
+
+1. add zone definition in named.conf
+2. add zone file
+3. restart bind9
+
+# check configuration if there is any error
 named-checkconf
 named-checkzone insec ./db.1.168.192.in-addr.arpa
 named-checkzone insec ./db.insec
-
-
-# named.conf add zone
 ```
 
 3.2 Provide the output of dig(1) for a successful query.
@@ -125,8 +125,7 @@ ns1.insec.              60      IN      A       192.168.1.10
 
 To add an IPv6 address entry to a zone file, you can use an AAAA record, which is used to map a hostname to an IPv6 address. Here is an example of how you would add an AAAA record to a zone file:
 
-host1.insec. IN AAAA 2001:0db8:85a3:0000:0000:8a2e:0370:7334
-
+`host1.insec. IN AAAA 2001:0db8:85a3:0000:0000:8a2e:0370:7334`
 
 host1.insec. is the hostname for which the IPv6 address is being defined.
 IN is the record class, which stands for "Internet." AAAA is the record type, which stands for "IPv6 address." 2001:0db8:85a3:0000:0000:8a2e:0370:7334 is the IPv6 address being mapped to the hostname. After adding the AAAA record to your zone file, be sure to save the changes and reload your DNS server to make the changes take effect.
@@ -134,22 +133,32 @@ IN is the record class, which stands for "Internet." AAAA is the record type, wh
 
 4.1 Configure ns2 to work as a slave for .insec domain.
 
+	
+Demonstrate the successful zone file transfer.
 ```
 # show zone file in slave
-named-compilezone -f raw -F text -o insec.zone.out insec db.insec
-cat insec.zone.out
+1. cd /var/cache/bind in slave node ns2
+2. named-compilezone -f raw -F text -o insec.zone.out insec db.insec
+3. cat insec.zone.out
 
 # show serial number
 dig ns1.insec SOA @192.168.1.10
 dig ns1.insec SOA @192.168.1.11
+
+# show logs
+
+
 ```
 
 4.2 Explain the changes you made
-
 ```
-# add zone named.conf in slave node
-# add slave information in named.conf, db.insec, db.64.168.192.in-addr.arpa in master
-# increase serial number in master and restart named
+1. add zone definition in named.conf in slave node ns2.
+2. on the master server n1, add an entry (A, PTR and NS -records) for the slave server ns2.
+3. increase the serial number for the zone on the master server n1.
+3. rndc reload insec on the master server n1.
+
+
+
 
 // check the configuration
 named-checkzone insec ./db.1.168.192.in-addr.arpa
@@ -198,21 +207,20 @@ There should be no difference in the query process between a master and a slave 
 
 5.1 Create a subdomain .not.insec, use ns2 as a master and ns3 as a slave.
 
+	
+Explain the changes you made.
 ```
 # lab2
-add zone in named.conf
-add slave information in named.conf, db.not.insec in master
-increase serial number in master and restart named
-
+1. add zone definition in named.conf on ns2
+2. add zone file db.not.insec on ns2
 
 # lab3
-add zone information in /etc/bind/named.conf
+1. add zone definition in named.conf on ns3
 
 
 # lab1
-add forward zone in named.conf
-add 'glue' record
-
+1. add forward zone in named.conf
+2. add 'glue' record in db.insec
 ```
 
 5.2 Provide the output of dig(1) for successful queries from all the three name
@@ -294,10 +302,10 @@ ns2.not.insec.          60      IN      A       192.168.1.11
 6.1 Implement transaction signatures
 
 Explain the changes you made. Show the successful and the unsuccessful zone transfer in the log.
-
 ```
-# https://tomthorp.me/blog/using-tsig-enable-secure-zone-transfers-between-bind-9x-servers
+refer to https://tomthorp.me/blog/using-tsig-enable-secure-zone-transfers-between-bind-9x-servers
 
+1. generate key on lab2
 root@lab2:/etc/bind# tsig-keygen -a hmac-sha1 keyname | tee keyname.key
 key "keyname" {
         algorithm hmac-sha1;
@@ -308,17 +316,16 @@ key "keyname" {
         algorithm hmac-sha1;
         secret "w5aj7j4O54Tl6OdncPOMr0aKnno=";
 };
-
-# lab2
-generate key
-allow-transfer { key "keyname";};
-
-# lab3 
+2. add key to named.conf on lab2
+3. change zone definition on lab2 allow-transfer { key "keyname";};
+4. copy key to lab3
+5. add key to named.conf on lab3
+6. add server definition on lab3
 server 192.168.1.11 {
   keys {keyname;};
 };
 
-
+# show log
 root@lab2:~# tail -f /var/log/syslog
 Feb 26 12:48:30 ubuntu-focal named[3350]: transfer of 'insec/IN' from 192.168.1.10#53: Transfer completed: 1 messages, 10 records, 252 bytes, 0.004 secs (63000 bytes/sec)
 Feb 26 12:48:30 ubuntu-focal named[3350]: zone insec/IN: sending notifies (serial 2022120100)
@@ -338,14 +345,13 @@ Feb 26 12:49:40 ubuntu-focal named[3361]: zone not.insec/IN: transferred serial 
 Feb 26 12:49:40 ubuntu-focal named[3361]: transfer of 'not.insec/IN' from 192.168.1.11#53: Transfer status: success
 Feb 26 12:49:40 ubuntu-focal named[3361]: transfer of 'not.insec/IN' from 192.168.1.11#53: Transfer completed: 1 messages, 6 records, 261 bytes, 0.003 secs (87000 bytes/sec)
 
-
+# test unauthenticated and unauthenticated zone transfer
 root@lab3:/etc/bind# dig @192.168.1.11 not.insec axfr
 
 ; <<>> DiG 9.16.1-Ubuntu <<>> @192.168.1.11 not.insec axfr
 ; (1 server found)
 ;; global options: +cmd
 ; Transfer failed.
-
 
 
 
@@ -371,31 +377,16 @@ keyname.                0       ANY     TSIG    hmac-sha1. 1677358981 300 20 /4I
 6.2 TSIG is one way to implement transaction signatures. DNSSEC describes
 another, SIG(0). Explain the differences.
 
-TSIG (Transaction SIGnature) and SIG(0) (Signature 0) are both methods for
-authenticating DNS transactions, but they are different in their implementation
-and security properties.
+TSIG (Transaction SIGnature) and SIG(0) (Signature 0) are both methods for authenticating DNS transactions, but they are different in their implementation and security properties.
 
-TSIG is a method for adding an authentication mechanism to DNS transactions,
-which are used to transfer DNS data between a client and a server. TSIG uses a
-secret key shared between the client and server to sign each DNS transaction and
-ensure its integrity and authenticity. TSIG uses a message-digest algorithm
-(such as HMAC-MD5) to generate the signature.
+TSIG uses a secret key shared between the client and server to sign each DNS transaction and ensure its integrity and authenticity. TSIG uses a message-digest algorithm (such as hmac-sha1) to generate the signature.
 
-SIG(0) (Signature 0), on the other hand, is part of the DNSSEC (Domain Name
-System Security Extensions) protocol, which provides a more comprehensive
-security mechanism for the DNS. DNSSEC uses public-key cryptography to secure
-the DNS data, and SIG(0) is used to sign individual resource records within a
-DNS zone. Unlike TSIG, which only provides transaction-level security, DNSSEC
-provides end-to-end security for the entire DNS data, from the root zone down to
-individual resource records.
+SIG(0) (Signature 0), on the other hand, is part of the DNSSEC (Domain Name System Security Extensions) protocol, which provides a more comprehensive security mechanism for the DNS. DNSSEC uses public-key cryptography to secure the DNS data, and SIG(0) is used to sign individual resource records within a DNS zone. Unlike TSIG, which only provides transaction-level security, DNSSEC provides end-to-end security for the entire DNS data, from the root zone down to individual resource records.
 
-In summary, while both TSIG and SIG(0) are methods for authenticating DNS
-transactions, TSIG provides transaction-level security while SIG(0) provides
-end-to-end security for the entire DNS data through the use of public-key
-cryptography.
+In summary, while both TSIG and SIG(0) are methods for authenticating DNS transactions, TSIG provides transaction-level security while SIG(0) provides end-to-end security for the entire DNS data through the use of public-key cryptography.
 
 7.1 Based on the dig-queries, how does Pi-hole block domains on a DNS level?
-
+the first option    client -> pihole -> bind9
 ```
 # refer to https://www.techaddressed.com/tutorials/basic-pi-hole-config/
 systemctl stop bind9 # stop bind9；因为bind9会监听53端口，所以pihole无法监听53端口
@@ -415,6 +406,23 @@ ssh -NL 8081:localhost:80 vagrant@127.0.0.1 -p 2222
 # http://localhost:8081/admin/   # 打开web界面进行配置
 # Clients 添加 可以允许访问client的IP地址
 
+
+https://docstore.mik.ua/orelly/networking_2ndEd/dns/ch10_15.htm
+pihole-FTL port: https://docs.pi-hole.net/main/prerequisites/
+FTL means: "Faster than Light"
+
+vim /etc/bind/named.conf.options // 将bind9的端口设置为5353 listen-on port 5353 { 127.0.0.1; 192.168.1.10;};
+# 将pihole设置为upstream DNS设置为bind9
+```
+the second option (adapted this option) client -> bind9 -> pihole
+```
+1. set pi-hole upstream DNS to 8.8.8.8
+1. set pi-hole port to 5353
+2. set forwarder to 127.0.0.1#5353 in bind9
+```
+
+the logs of adding blacklist
+```
 # Domains add google.com to blacklist
 root@lab1:/etc/bind# dig @192.168.1.10 google.com
 
@@ -468,64 +476,22 @@ https://www.reddit.com/r/homelab/comments/ln8esx/bind_vs_pihole/
 
 Pi-hole block mode: https://docs.pi-hole.net/ftldns/blockingmode/
 
-Pi-hole works by intercepting DNS queries and blocking them if the domain name
-matches one of the entries in its block list. It does this by operating as a DNS
-server, and when a client makes a DNS query, Pi-hole will process the query and
-check if the domain name being requested is on the block list. If it is, Pi-hole
-will return a fake, non-existent IP address, effectively blocking the connection
-to that domain.
+In NULL mode, which is both the default and recommended mode for Pi-hole FTLDNS, blocked queries will be answered with the "unspecified address" (0.0.0.0).
 
-The way Pi-hole implements this is by running a DNS server that listens for
-incoming queries from clients on the network. When a client makes a query,
-Pi-hole will receive the request, process it, and then either return the IP
-address of the domain being requested or a fake, non-existent IP address if the
-domain is on the block list. The block list can be customized, so you can add or
-remove entries as needed.
+Pi-hole works by intercepting DNS queries and blocking them if the domain name matches one of the entries in its block list. It does this by operating as a DNS server, and when a client makes a DNS query, Pi-hole will process the query and check if the domain name being requested is on the block list. If it is, Pi-hole will return a fake, non-existent IP address, effectively blocking the connection to that domain. The block list can be customized, so you can add or remove entries as needed.
 
-In summary, Pi-hole works by blocking domains at the DNS level by intercepting
-DNS queries and returning a fake, non-existent IP address for blocked domains.
-This effectively blocks connections to those domains, as the client will not be
-able to resolve the IP address and therefore will not be able to establish a
-connection.
 
-7.2 How could you use Pi-hole in combination with your own DNS server, such as
-your caching-only nameserver?
 
-```
-https://docstore.mik.ua/orelly/networking_2ndEd/dns/ch10_15.htm
+7.2 How could you use Pi-hole in combination with your own DNS server, such as your caching-only nameserver?
 
-pihole-FTL port: https://docs.pi-hole.net/main/prerequisites/
-FTL means: "Faster than Light"
+Configuring DNS server to forward all DNS queries to Pi-hole. This way,  DNS server will act as a caching-only nameserver, storing the responses from Pi-hole in its cache for a certain amount of time to reduce the number of queries it needs to make.
 
-vim /etc/bind/named.conf.options // 将bind9的端口设置为5353 listen-on port 5353 { 127.0.0.1; 192.168.64.13;};
-# 将pihole设置为upstream DNS设置为bind9
-```
-There are 2 ways to use Pi-hole in combination with your own DNS server:
-* You can use Pi-hole in combination with your own DNS server by configuring your
-DNS server to forward all DNS queries to Pi-hole. This way, your DNS server will
-act as a caching-only nameserver, storing the responses from Pi-hole in its
-cache for a certain amount of time to reduce the number of queries it needs to
-make.
-```
-Here's a simple example of how you can set this up:
+Install Pi-hole on a separate server or change the listening port on the same machine. Configure your caching-only nameserver to forward all DNS queries to Pi-hole. This can typically be done by adding a forwarder to your DNS configuration file, such as named.conf. On your clients, configure the DNS server to use the IP address of your caching-only nameserver. 
 
-Install Pi-hole on a separate server or device. Configure your caching-only
-nameserver to forward all DNS queries to Pi-hole. This can typically be done by
-adding a forwarder to your DNS configuration file, such as named.conf. On your
-clients, configure the DNS server to use the IP address of your caching-only
-nameserver. With this setup, your caching-only nameserver will receive all DNS
-queries from clients, cache the responses from Pi-hole, and return the cached
-responses to clients for future queries. This will help reduce the number of
-queries that need to be made to Pi-hole, making the system more efficient.
+With this setup, the caching-only nameserver will receive all DNS queries from clients, cache the responses from Pi-hole, and return the cached responses to clients for future queries. This will help reduce the number of queries that need to be made to Pi-hole, making the system more efficient.
 
-In addition, Pi-hole will still be able to block unwanted domains, as it will
-receive all the DNS queries from your caching-only nameserver and return the
-appropriate response. This means that you will be able to take advantage of the
-domain blocking functionality provided by Pi-hole, as well as the caching
-capabilities provided by your own DNS server.
-```
-* set pihole's upstream DNS to your own DNS server
-```
+In addition, Pi-hole will still be able to block unwanted domains, as it will receive all the DNS queries from your caching-only nameserver and return the appropriate response. This means that you will be able to take advantage of the domain blocking functionality provided by Pi-hole, as well as the caching capabilities provided by your own DNS server.
+
 
 ## Basic DNS concepts
 
