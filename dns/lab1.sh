@@ -2,23 +2,26 @@
 
 
 sudo apt-get update
-sudo apt-get install -y bind9 bind9utils
+sudo apt-get install -y bind9 bind9utils  net-tools
 sed -i '1i\
 acl goodclients { \
 192.168.1.0/24; \
-192.168.2.0/24; \
 localhost; \
 localnets; \
 }; \
 ' /etc/bind/named.conf.options
 
+
+
 sed -i '/options /a \
 forwarders { \
 8.8.8.8; \
+//127.0.0.1 port 5353; \
 }; \
 recursion yes; \
 allow-query { goodclients; }; \
-//listen-on port 5353 { 127.0.0.1; 192.168.1.10;}; \
+allow-recursion { goodclients; }; \
+//listen-on port 53 { 127.0.0.1; 192.168.1.10;}; \
 ' /etc/bind/named.conf.options
 
 
@@ -107,3 +110,30 @@ named-checkzone insec ./db.1.168.192.in-addr.arpa
 named-checkzone insec ./db.insec
 
 systemctl restart bind9 
+
+# block data from lab3
+iptables -I INPUT -s 192.168.1.12 -j DROP
+
+sudo mkdir -p /etc/pihole
+sudo tee /etc/pihole/setupVars.conf <<EOF
+PIHOLE_INTERFACE=enp0s8
+PIHOLE_DNS_1=8.8.8.8
+PIHOLE_DNS_2=8.8.4.4
+QUERY_LOGGING=true
+INSTALL_WEB_SERVER=true
+INSTALL_WEB_INTERFACE=true
+LIGHTTPD_ENABLED=true
+CACHE_SIZE=10000
+DNS_FQDN_REQUIRED=true
+DNS_BOGUS_PRIV=true
+DNSMASQ_LISTENING=local
+WEBPASSWORD=49dc52e6bf2abe5ef6e2bb5b0f1ee2d765b922ae6cc8b95d39dc06c21c848f8c
+EOF
+
+curl -sSL https://install.pi-hole.net | bash /dev/stdin --unattended
+pihole -b google.com
+# # pihole -b -d google.com
+sudo tee -a /etc/dnsmasq.conf <<EOL
+port=5353
+EOL
+pihole restartdns

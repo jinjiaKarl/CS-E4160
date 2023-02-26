@@ -19,7 +19,7 @@ systemctl start named
 
 netstat -nap | grep 2882
  
-systemctl stop systemd-resolved
+#systemctl stop systemd-resolved
 
 
 # /etc/bind
@@ -28,14 +28,37 @@ vim /etc/bind/named.conf.options
 max-cache-ttl 600 # 600s
 
 
-
 #  -x option is supplied to indicate a reverse lookup
-dig @192.168.64.13 www.alibaba.com
+dig @192.168.1.10 www.alibaba.com
 
 # view bind9 cache https://linuxconfig.org/how-to-view-and-clear-bind-dns-server-s-cache-on-linux
 rndc dumpdb -cache
 grep alibaba /var/named/data/cache_dump.db  // /var/cache/bind
 rndc flush
+
+
+vagrant@client:~$ dig @192.168.1.10 google.com
+
+; <<>> DiG 9.16.1-Ubuntu <<>> @192.168.1.10 google.com
+; (1 server found)
+;; global options: +cmd
+;; Got answer:
+;; ->>HEADER<<- opcode: QUERY, status: NOERROR, id: 56508
+;; flags: qr rd ra; QUERY: 1, ANSWER: 1, AUTHORITY: 0, ADDITIONAL: 1
+
+;; OPT PSEUDOSECTION:
+; EDNS: version: 0, flags:; udp: 4096
+; COOKIE: 6b7994a5f843c9cb0100000063fb7332aa2bdd6e77a285c8 (good)
+;; QUESTION SECTION:
+;google.com.                    IN      A
+
+;; ANSWER SECTION:
+google.com.             300     IN      A       142.250.200.46
+
+;; Query time: 120 msec
+;; SERVER: 192.168.1.10#53(192.168.1.10)
+;; WHEN: Sun Feb 26 14:56:51 UTC 2023
+;; MSG SIZE  rcvd: 83
 ```
 
 2.2 What is a recursive query? How does it differ from an iterative query?
@@ -73,28 +96,29 @@ named-checkzone insec ./db.insec
 3.2 Provide the output of dig(1) for a successful query.
 
 ```
-root@client:/etc/bind# dig @192.168.1.10 ns.insec
+vagrant@client:~$ dig @192.168.1.10 ns1.insec
 
 ; <<>> DiG 9.16.1-Ubuntu <<>> @192.168.1.10 ns1.insec
 ; (1 server found)
 ;; global options: +cmd
 ;; Got answer:
-;; ->>HEADER<<- opcode: QUERY, status: NOERROR, id: 23279
+;; ->>HEADER<<- opcode: QUERY, status: NOERROR, id: 32798
 ;; flags: qr aa rd ra; QUERY: 1, ANSWER: 1, AUTHORITY: 0, ADDITIONAL: 1
 
 ;; OPT PSEUDOSECTION:
 ; EDNS: version: 0, flags:; udp: 4096
-; COOKIE: 0f7ea12d9e3878900100000063fa6bc6134ebbb6c7ee5d1c (good)
+; COOKIE: 28aba889496891ee0100000063fb56f4cc676d580478b335 (good)
 ;; QUESTION SECTION:
-;ns1.insec.                   IN      A
+;ns1.insec.                     IN      A
 
 ;; ANSWER SECTION:
-ns1.insec.            60      IN      A       192.168.1.10
+ns1.insec.              60      IN      A       192.168.1.10
 
 ;; Query time: 0 msec
 ;; SERVER: 192.168.1.10#53(192.168.1.10)
-;; WHEN: Sat Feb 25 20:12:54 UTC 2023
-;; MSG SIZE  rcvd: 84
+;; WHEN: Sun Feb 26 12:56:21 UTC 2023
+;; MSG SIZE  rcvd: 82
+
 ```
 
 3.3 How would you add an IPv6 address entry to a zone file?
@@ -114,25 +138,28 @@ IN is the record class, which stands for "Internet." AAAA is the record type, wh
 # show zone file in slave
 named-compilezone -f raw -F text -o insec.zone.out insec db.insec
 cat insec.zone.out
+
+# show serial number
+dig ns1.insec SOA @192.168.1.10
+dig ns1.insec SOA @192.168.1.11
 ```
 
 4.2 Explain the changes you made
 
 ```
-# add zone in named.conf
+# add zone named.conf in slave node
 # add slave information in named.conf, db.insec, db.64.168.192.in-addr.arpa in master
 # increase serial number in master and restart named
 
-
-type: slave
-increment serial number on master
-
-// update the configuration
+// check the configuration
 named-checkzone insec ./db.1.168.192.in-addr.arpa
 named-checkzone insec ./db.insec
 
-// reboot the slave to reload the latest configuration
-root@lab3:/etc/bind# systemctl restart bind9
+// reboot the master/slave to reload the latest configuration
+// root@lab3:/etc/bind# systemctl restart bind9
+
+// reload configuration
+rndc reload insec
 ```
 
 4.3 Provide the output of dig(1) for a successful query from the slave server.
@@ -177,13 +204,14 @@ add zone in named.conf
 add slave information in named.conf, db.not.insec in master
 increase serial number in master and restart named
 
+
 # lab3
 add zone information in /etc/bind/named.conf
 
 
 # lab1
 add forward zone in named.conf
-add 'glue' record ???
+add 'glue' record
 
 ```
 
@@ -239,19 +267,18 @@ ns2.not.insec.          60      IN      A       192.168.1.11
 ;; WHEN: Sat Feb 25 20:39:41 UTC 2023
 ;; MSG SIZE  rcvd: 86
 
+root@lab3:/var/cache/bind# dig @192.168.1.12 ns2.not.insec
 
-root@lab3:/var/cache/bind# dig @192.168.2.11 ns2.not.insec
-
-; <<>> DiG 9.16.1-Ubuntu <<>> @192.168.2.11 ns2.not.insec
+; <<>> DiG 9.16.1-Ubuntu <<>> @192.168.1.12 ns2.not.insec
 ; (1 server found)
 ;; global options: +cmd
 ;; Got answer:
-;; ->>HEADER<<- opcode: QUERY, status: NOERROR, id: 55064
+;; ->>HEADER<<- opcode: QUERY, status: NOERROR, id: 47260
 ;; flags: qr aa rd ra; QUERY: 1, ANSWER: 1, AUTHORITY: 0, ADDITIONAL: 1
 
 ;; OPT PSEUDOSECTION:
 ; EDNS: version: 0, flags:; udp: 4096
-; COOKIE: 95a7cdaa243c35120100000063fa74213e571d0bedfed2e1 (good)
+; COOKIE: b52ea84027bcce040100000063fb577eb4bcf5f7d7deff0a (good)
 ;; QUESTION SECTION:
 ;ns2.not.insec.                 IN      A
 
@@ -259,8 +286,8 @@ root@lab3:/var/cache/bind# dig @192.168.2.11 ns2.not.insec
 ns2.not.insec.          60      IN      A       192.168.1.11
 
 ;; Query time: 0 msec
-;; SERVER: 192.168.2.11#53(192.168.2.11)
-;; WHEN: Sat Feb 25 20:48:33 UTC 2023
+;; SERVER: 192.168.1.12#53(192.168.1.12)
+;; WHEN: Sun Feb 26 12:58:38 UTC 2023
 ;; MSG SIZE  rcvd: 86
 ```
 
@@ -290,7 +317,26 @@ allow-transfer { key "keyname";};
 server 192.168.1.11 {
   keys {keyname;};
 };
-show log ????
+
+
+root@lab2:~# tail -f /var/log/syslog
+Feb 26 12:48:30 ubuntu-focal named[3350]: transfer of 'insec/IN' from 192.168.1.10#53: Transfer completed: 1 messages, 10 records, 252 bytes, 0.004 secs (63000 bytes/sec)
+Feb 26 12:48:30 ubuntu-focal named[3350]: zone insec/IN: sending notifies (serial 2022120100)
+Feb 26 12:48:34 ubuntu-focal systemd[1]: systemd-timedated.service: Succeeded.
+Feb 26 12:48:37 ubuntu-focal systemd[1]: systemd-hostnamed.service: Succeeded.
+Feb 26 12:48:39 ubuntu-focal named[3350]: resolver priming query complete
+Feb 26 12:48:39 ubuntu-focal named[3350]: managed-keys-zone: Unable to fetch DNSKEY set '.': timed out
+Feb 26 12:49:37 ubuntu-focal systemd[1]: Started Session 4 of user vagrant.
+Feb 26 12:49:40 ubuntu-focal named[3350]: client @0x7f72d402df50 192.168.1.12#56615/key keyname (not.insec): transfer of 'not.insec/IN': AXFR started: TSIG keyname (serial 2022120200)
+Feb 26 12:49:40 ubuntu-focal named[3350]: client @0x7f72d402df50 192.168.1.12#56615/key keyname (not.insec): transfer of 'not.insec/IN': AXFR ended: 1 messages, 6 records, 261 bytes, 0.001 secs (261000 bytes/sec)
+Feb 26 12:50:46 ubuntu-focal systemd[1]: session-3.scope: Succeeded.
+
+root@lab3:/var/cache/bind# grep 'named' /var/log/syslog 
+Feb 26 12:49:40 ubuntu-focal named[3361]: zone not.insec/IN: Transfer started.
+Feb 26 12:49:40 ubuntu-focal named[3361]: transfer of 'not.insec/IN' from 192.168.1.11#53: connected using 192.168.1.12#56615 TSIG keyname
+Feb 26 12:49:40 ubuntu-focal named[3361]: zone not.insec/IN: transferred serial 2022120200: TSIG 'keyname'
+Feb 26 12:49:40 ubuntu-focal named[3361]: transfer of 'not.insec/IN' from 192.168.1.11#53: Transfer status: success
+Feb 26 12:49:40 ubuntu-focal named[3361]: transfer of 'not.insec/IN' from 192.168.1.11#53: Transfer completed: 1 messages, 6 records, 261 bytes, 0.003 secs (87000 bytes/sec)
 
 
 root@lab3:/etc/bind# dig @192.168.1.11 not.insec axfr
@@ -302,9 +348,7 @@ root@lab3:/etc/bind# dig @192.168.1.11 not.insec axfr
 
 
 
-root@lab3:/etc/bind# vim named.conf
 
-[1]+  Stopped                 vim named.conf
 root@lab3:/etc/bind# dig @192.168.1.11 not.insec axfr -k /etc/bind/keyname.key
 
 ; <<>> DiG 9.16.1-Ubuntu <<>> @192.168.1.11 not.insec axfr -k /etc/bind/keyname.key
@@ -357,7 +401,7 @@ cryptography.
 systemctl stop bind9 # stop bind9；因为bind9会监听53端口，所以pihole无法监听53端口
 # 设置upstream DNS为google的DNS 8.8.8.8
 curl -sSL https://install.pi-hole.net | bash 
-pihole -a -p # set password
+pihole -a -p # set password 123456
 pihole restartdns
 
 systemctl status pihole-FTL.service # 查看pihole的运行状态

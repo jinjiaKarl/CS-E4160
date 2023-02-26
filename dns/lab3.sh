@@ -1,5 +1,5 @@
 sudo apt-get update
-sudo apt-get install -y bind9 bind9utils
+sudo apt-get install -y bind9 bind9utils  net-tools
 
 
 tee -a /etc/bind/keyname.key > /dev/null <<EOF
@@ -26,7 +26,7 @@ EOF
 
 sed -i '/options /a \
 recursion yes; \
-allow-query { localhost;192.168.1.0/24; 192.168.2.0/24;}; \
+allow-query { localhost;192.168.1.0/24; }; \
 ' /etc/bind/named.conf.options
 
 systemctl restart bind9 

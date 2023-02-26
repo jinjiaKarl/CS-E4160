@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 
 sudo apt-get update
-sudo apt-get install -y bind9 bind9utils
+sudo apt-get install -y bind9 bind9utils  net-tools
 
 
 
@@ -32,8 +32,8 @@ zone "not.insec" {
   type master;
   file "/etc/bind/db.not.insec";
   allow-transfer { key "keyname";};
-  // allow-transfer { 192.168.2.11; }
-  // also-notify { 192.168.2.11; };
+  // allow-transfer { 192.168.1.12; }
+  // also-notify { 192.168.1.12; };
 };
 
 include "/etc/bind/keyname.key";
@@ -50,15 +50,16 @@ sudo tee -a /etc/bind/db.not.insec > /dev/null <<EOF
 )
 
 @ IN NS ns2.not.insec.
+@ IN NS ns3.not.insec.
 
 ns2 IN A 192.168.1.11
-ns3 IN A 192.168.2.11
-host1.not.insec. IN A 192.168.2.99
+ns3 IN A 192.168.1.12
+host1.not.insec. IN A 192.168.1.99
 EOF
 
 sed -i '/options /a \
 recursion yes; \
-allow-query { localhost;192.168.1.0/24; 192.168.2.0/24;}; \
+allow-query { localhost;192.168.1.0/24; }; \
 ' /etc/bind/named.conf.options
 
 
