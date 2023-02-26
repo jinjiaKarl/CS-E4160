@@ -60,6 +60,7 @@ tee /etc/bind/db.insec > /dev/null <<EOF
 ; Define the default name server to ns1.insec.
 ;@ IN NS ns1
 @ IN NS ns1.insec.
+@ IN NS ns2.insec.
 
 
 ; Resolve ns1 to server IP address
@@ -89,7 +90,7 @@ tee -a /etc/bind/db.1.168.192.in-addr.arpa > /dev/null <<EOF
 )
 ; Name server
 @ IN NS ns1
-
+@ IN NS ns2
 
 ;Other Servers
 ns1  IN      A       192.168.1.10

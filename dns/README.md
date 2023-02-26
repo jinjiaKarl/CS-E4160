@@ -20,7 +20,7 @@ systemctl start named
 netstat -nap | grep 2882
  
 systemctl stop systemd-resolved
-+
+
 
 # /etc/bind
 cp /etc/bind/named.conf.options{,.bak}
@@ -28,7 +28,8 @@ vim /etc/bind/named.conf.options
 max-cache-ttl 600 # 600s
 
 
-#  -x option is supplied to indicate a reverse looku
+
+#  -x option is supplied to indicate a reverse lookup
 dig @192.168.64.13 www.alibaba.com
 
 # view bind9 cache https://linuxconfig.org/how-to-view-and-clear-bind-dns-server-s-cache-on-linux
@@ -39,14 +40,13 @@ rndc flush
 
 2.2 What is a recursive query? How does it differ from an iterative query?
 
-In the context of DNS, a recursive query is a query made by a client to a DNS
-resolver, asking the resolver to find the answer to a specific domain name
-question. The DNS resolver will then make multiple iterative queries to various
-DNS servers in order to resolve the requested domain name.
+https://www.omnisecu.com/tcpip/recursive-and-iterative-dns-queries.php
+DNS hierarchy: https://www.omnisecu.com/tcpip/dns-namespace-hierarchy.php
 
-In an iterative query, the DNS client directly queries multiple DNS servers, and
-receives the best answer available from each server. The client then combines
-the information obtained from all the servers to build a complete response.
+In Recursive DNS Query, If the DNS Server doesn't know the answer to provide accurate answer to the DNS Client, DNS Server may query other DNS Servers on behalf of the DNS Client.
+
+In Iterative DNS Query, when a DNS Client asks the DNS server for name resolution, the DNS Server provides the best answer it has. If the DNS Server doesn't know the answer to the DNS Query from Client, the answer can be a reference to another lower level DNS Server also. This lower level DNS Server is delegated at the higher level DNS Server to be Authoritative for the DNS namespace which the DNS Query is related with. Once the DNS Client get the referral from higher level DNS Server, it can then send a DNS Query to the lower level DNS server, got as referral.
+
 
 The main difference between the two approaches is that in a recursive query, the
 responsibility of finding the complete answer is taken on by the DNS resolver,
@@ -54,6 +54,8 @@ while in an iterative query, the responsibility is shared between the client and
 the DNS servers. The use of recursive queries is more common in modern DNS
 setups, as it simplifies the process for the client and reduces the load on
 individual DNS servers.
+
+![dns](./dns.webp)
 
 3.1 Configure ns1 to be the primary master for .insec domain.
 
@@ -71,10 +73,9 @@ named-checkzone insec ./db.insec
 3.2 Provide the output of dig(1) for a successful query.
 
 ```
-# test
-root@lab1:/etc/bind# dig @192.168.1.10 host1.insec
+root@client:/etc/bind# dig @192.168.1.10 ns.insec
 
-; <<>> DiG 9.16.1-Ubuntu <<>> @192.168.1.10 host1.insec
+; <<>> DiG 9.16.1-Ubuntu <<>> @192.168.1.10 ns1.insec
 ; (1 server found)
 ;; global options: +cmd
 ;; Got answer:
@@ -85,10 +86,10 @@ root@lab1:/etc/bind# dig @192.168.1.10 host1.insec
 ; EDNS: version: 0, flags:; udp: 4096
 ; COOKIE: 0f7ea12d9e3878900100000063fa6bc6134ebbb6c7ee5d1c (good)
 ;; QUESTION SECTION:
-;host1.insec.                   IN      A
+;ns1.insec.                   IN      A
 
 ;; ANSWER SECTION:
-host1.insec.            60      IN      A       192.168.1.88
+ns1.insec.            60      IN      A       192.168.1.10
 
 ;; Query time: 0 msec
 ;; SERVER: 192.168.1.10#53(192.168.1.10)
@@ -98,26 +99,18 @@ host1.insec.            60      IN      A       192.168.1.88
 
 3.3 How would you add an IPv6 address entry to a zone file?
 
-```
-To add an IPv6 address entry to a zone file, you can use an AAAA (quad-A) record, which is used to map a hostname to an IPv6 address. Here is an example of how you would add an AAAA record to a zone file:
+To add an IPv6 address entry to a zone file, you can use an AAAA record, which is used to map a hostname to an IPv6 address. Here is an example of how you would add an AAAA record to a zone file:
 
-example.com. IN AAAA 2001:0db8:85a3:0000:0000:8a2e:0370:7334
+host1.insec. IN AAAA 2001:0db8:85a3:0000:0000:8a2e:0370:7334
 
 
-example.com. is the hostname for which the IPv6 address is being defined.
-IN is the record class, which stands for "Internet."
-AAAA is the record type, which stands for "IPv6 address."
-2001:0db8:85a3:0000:0000:8a2e:0370:7334 is the IPv6 address being mapped to the hostname.
-After adding the AAAA record to your zone file, be sure to save the changes and reload your DNS server to make the changes take effect.
-```
+host1.insec. is the hostname for which the IPv6 address is being defined.
+IN is the record class, which stands for "Internet." AAAA is the record type, which stands for "IPv6 address." 2001:0db8:85a3:0000:0000:8a2e:0370:7334 is the IPv6 address being mapped to the hostname. After adding the AAAA record to your zone file, be sure to save the changes and reload your DNS server to make the changes take effect.
+
 
 4.1 Configure ns2 to work as a slave for .insec domain.
 
 ```
-# add zone in named.conf
-# add slave information in named.conf, db.insec, db.64.168.192.in-addr.arpa in master
-# increase serial number in master and restart named
-
 # show zone file in slave
 named-compilezone -f raw -F text -o insec.zone.out insec db.insec
 cat insec.zone.out
@@ -126,6 +119,11 @@ cat insec.zone.out
 4.2 Explain the changes you made
 
 ```
+# add zone in named.conf
+# add slave information in named.conf, db.insec, db.64.168.192.in-addr.arpa in master
+# increase serial number in master and restart named
+
+
 type: slave
 increment serial number on master
 
@@ -164,16 +162,29 @@ ns1.insec.              60      IN      A       192.168.1.10
 ;; WHEN: Sat Feb 25 20:38:08 UTC 2023
 ;; MSG SIZE  rcvd: 82
 
-
+```
 
 In DNS, a slave server (also known as a secondary server) obtains DNS information from a master (or primary) server through a process called zone transfer. The slave server uses this information to answer queries for a specific portion of the DNS namespace, called a zone.
 
 There should be no difference in the query process between a master and a slave server, as both servers are capable of answering queries. However, the data served by the slave server is a copy of the data on the master server and may be slightly out of date, as zone transfers are not performed in real-time. Additionally, the master server is responsible for making changes to the DNS data, while the slave server is read-only.
-```
+
 
 5.1 Create a subdomain .not.insec, use ns2 as a master and ns3 as a slave.
 
 ```
+# lab2
+add zone in named.conf
+add slave information in named.conf, db.not.insec in master
+increase serial number in master and restart named
+
+# lab3
+add zone information in /etc/bind/named.conf
+
+
+# lab1
+add forward zone in named.conf
+add 'glue' record ???
+
 ```
 
 5.2 Provide the output of dig(1) for successful queries from all the three name
@@ -255,8 +266,11 @@ ns2.not.insec.          60      IN      A       192.168.1.11
 
 6.1 Implement transaction signatures
 
+Explain the changes you made. Show the successful and the unsuccessful zone transfer in the log.
+
 ```
 # https://tomthorp.me/blog/using-tsig-enable-secure-zone-transfers-between-bind-9x-servers
+
 root@lab2:/etc/bind# tsig-keygen -a hmac-sha1 keyname | tee keyname.key
 key "keyname" {
         algorithm hmac-sha1;
@@ -268,6 +282,15 @@ key "keyname" {
         secret "w5aj7j4O54Tl6OdncPOMr0aKnno=";
 };
 
+# lab2
+generate key
+allow-transfer { key "keyname";};
+
+# lab3 
+server 192.168.1.11 {
+  keys {keyname;};
+};
+show log ????
 
 
 root@lab3:/etc/bind# dig @192.168.1.11 not.insec axfr
@@ -347,7 +370,8 @@ ssh -NL 8081:localhost:80 vagrant@127.0.0.1 -p 2222
 
 # http://localhost:8081/admin/   # 打开web界面进行配置
 # Clients 添加 可以允许访问client的IP地址
-# Domains 添加 google.com到blacklist
+
+# Domains add google.com to blacklist
 root@lab1:/etc/bind# dig @192.168.1.10 google.com
 
 ; <<>> DiG 9.16.1-Ubuntu <<>> @192.168.1.10 google.com
@@ -371,7 +395,7 @@ google.com.             2       IN      A       0.0.0.0
 ;; MSG SIZE  rcvd: 55
 
 
-# 去掉blacklist
+# remove blacklist
 root@lab1:/etc/bind# dig @192.168.1.10 google.com
 
 ; <<>> DiG 9.16.1-Ubuntu <<>> @192.168.1.10 google.com
@@ -432,13 +456,13 @@ FTL means: "Faster than Light"
 vim /etc/bind/named.conf.options // 将bind9的端口设置为5353 listen-on port 5353 { 127.0.0.1; 192.168.64.13;};
 # 将pihole设置为upstream DNS设置为bind9
 ```
-
-You can use Pi-hole in combination with your own DNS server by configuring your
+There are 2 ways to use Pi-hole in combination with your own DNS server:
+* You can use Pi-hole in combination with your own DNS server by configuring your
 DNS server to forward all DNS queries to Pi-hole. This way, your DNS server will
 act as a caching-only nameserver, storing the responses from Pi-hole in its
 cache for a certain amount of time to reduce the number of queries it needs to
 make.
-
+```
 Here's a simple example of how you can set this up:
 
 Install Pi-hole on a separate server or device. Configure your caching-only
@@ -455,6 +479,9 @@ receive all the DNS queries from your caching-only nameserver and return the
 appropriate response. This means that you will be able to take advantage of the
 domain blocking functionality provided by Pi-hole, as well as the caching
 capabilities provided by your own DNS server.
+```
+* set pihole's upstream DNS to your own DNS server
+```
 
 ## Basic DNS concepts
 
