@@ -77,6 +77,16 @@ individual DNS servers.
 ![dns](./dns.webp)
 
 3.1 Configure ns1 to be the primary master for .insec domain.
+Configure ns1 to be the primary master for .insec domain. For that you will need to create zone definitions, reverse mappings, and to let your server know it will be authoritative for the zone. Create a zone file for .insec with the following information:
+
+* Primary name server for the zone is ns1.insec
+* Contact address should be hostmaster@insec
+* Use short refresh and retry time limits of 60 seconds
+* Put your machine's ip in ns1.insec's A record
+* Similarly create a reverse mapping zone c.b.a.in-addr.arpa, where a, b and c are the first three numbers of the virtual machine's current IP address (i.e. IP = a.b.c.xxx -> c.b.a.in-addr.arpa).
+
+Add a master zone entry for .insec and c.b.a.in-addr.arpa (see above) in named.conf. Reload bind's configuration files and watch the log for errors. Try to resolve ns1.insec from your client.
+
 
 	
 Explain your configuration.
@@ -133,7 +143,14 @@ IN is the record class, which stands for "Internet." AAAA is the record type, wh
 
 4.1 Configure ns2 to work as a slave for .insec domain.
 
-	
+
+Configure ns2 to work as a slave for .insec domain. Use a similar configuration as for the master, but don't create zone files.
+
+On the master server, add an entry (A, PTR and NS -records) for your slave server. Don't forget to increment the serial number for the zone. Also allow zone transfers to your slave.
+
+Reload configuration files in both machines and watch the logs. Verify that the zone files get transferred to the slave. Try to resolve machines in the .insec domain through both servers.
+
+
 Demonstrate the successful zone file transfer.
 ```
 # show zone file in slave
@@ -150,13 +167,15 @@ dig ns1.insec SOA @192.168.1.11
 
 ```
 
-4.2 Explain the changes you made
+4.2 Create a slave server for .insec
+
+
+Explain the changes you made
 ```
 1. add zone definition in named.conf in slave node ns2.
 2. on the master server n1, add an entry (A, PTR and NS -records) for the slave server ns2.
 3. increase the serial number for the zone on the master server n1.
 3. rndc reload insec on the master server n1.
-
 
 
 
@@ -206,6 +225,14 @@ There should be no difference in the query process between a master and a slave 
 
 
 5.1 Create a subdomain .not.insec, use ns2 as a master and ns3 as a slave.
+
+Similar to above, create a subdomain .not.insec, use ns2 as a master and ns3 as a slave. Remember to add an entry for subdomain NS in the .not.insec zone files.
+
+N.B You are creating a subdomain of .insec, so a simple copy paste of 4 won't work . Check out bind9 delegation.
+
+Reload configuration files in all three servers (watch the logs) and verify that the zone files get transferred to both slave servers. Try to resolve machines in .not.insec -domain from all three servers.
+
+
 
 	
 Explain the changes you made.
@@ -301,6 +328,28 @@ ns2.not.insec.          60      IN      A       192.168.1.11
 
 6.1 Implement transaction signatures
 
+One of the shortcomings of DNS is that the zone transfers are not authenticated, which opens up an opportunity to alter the zone files during updates. Prevent this by enhancing the .not.insec -domain to implement transaction signatures.
+
+Generate a secret key to be shared between masters and slaves with the command tsig-keygen(8). Use HMAC-SHA1 as the algorithm.
+
+Create a shared key file with the following template:
+```
+key keyname {
+algorithm hmac-sha1;
+secret "generated key";
+};
+
+# server to use key with
+server ip-addr {
+keys { keyname; };
+};
+```
+
+Fill in the generated key and server IP address, and make the key available to both the name servers of .not.insec. Include the key file in both the .not.insec name servers' named.conf files, and configure servers to only allow transfers signed with the key.
+
+First try an unauthenticated transfer - and then proceed to verify that you can do authenticated zone transfers using the transaction signature
+
+
 Explain the changes you made. Show the successful and the unsuccessful zone transfer in the log.
 ```
 refer to https://tomthorp.me/blog/using-tsig-enable-secure-zone-transfers-between-bind-9x-servers
@@ -325,7 +374,7 @@ server 192.168.1.11 {
   keys {keyname;};
 };
 
-# show log
+# show successful log
 root@lab2:~# tail -f /var/log/syslog
 Feb 26 12:48:30 ubuntu-focal named[3350]: transfer of 'insec/IN' from 192.168.1.10#53: Transfer completed: 1 messages, 10 records, 252 bytes, 0.004 secs (63000 bytes/sec)
 Feb 26 12:48:30 ubuntu-focal named[3350]: zone insec/IN: sending notifies (serial 2022120100)
@@ -345,6 +394,11 @@ Feb 26 12:49:40 ubuntu-focal named[3361]: zone not.insec/IN: transferred serial 
 Feb 26 12:49:40 ubuntu-focal named[3361]: transfer of 'not.insec/IN' from 192.168.1.11#53: Transfer status: success
 Feb 26 12:49:40 ubuntu-focal named[3361]: transfer of 'not.insec/IN' from 192.168.1.11#53: Transfer completed: 1 messages, 6 records, 261 bytes, 0.003 secs (87000 bytes/sec)
 
+
+# show unsuccessful log
+
+
+
 # test unauthenticated and unauthenticated zone transfer
 root@lab3:/etc/bind# dig @192.168.1.11 not.insec axfr
 
@@ -352,7 +406,6 @@ root@lab3:/etc/bind# dig @192.168.1.11 not.insec axfr
 ; (1 server found)
 ;; global options: +cmd
 ; Transfer failed.
-
 
 
 root@lab3:/etc/bind# dig @192.168.1.11 not.insec axfr -k /etc/bind/keyname.key
@@ -386,6 +439,10 @@ SIG(0) (Signature 0), on the other hand, is part of the DNSSEC (Domain Name Syst
 In summary, while both TSIG and SIG(0) are methods for authenticating DNS transactions, TSIG provides transaction-level security while SIG(0) provides end-to-end security for the entire DNS data through the use of public-key cryptography.
 
 7.1 Based on the dig-queries, how does Pi-hole block domains on a DNS level?
+
+Install Pi-hole on ns1 and configure the client to use it as their DNS. Perform a dig(1) query to a non-blacklisted domain such as google.com. Then blacklist that domain on the Pi-hole and repeat the query. (The result should not be same for both runs.) 
+
+
 the first option    client -> pihole -> bind9
 ```
 # refer to https://www.techaddressed.com/tutorials/basic-pi-hole-config/
