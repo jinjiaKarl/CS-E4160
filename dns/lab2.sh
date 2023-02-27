@@ -26,6 +26,7 @@ zone "1.168.192.in-addr.arpa" {
     masters { 192.168.1.10; };
     // masters { 192.168.1.10 port 5353; };
     file "/var/cache/bind/db.1.168.192.in-addr.arpa";
+    allow-transfer { key "keyname";};
 };
 
 zone "not.insec" {

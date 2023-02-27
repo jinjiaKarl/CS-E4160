@@ -129,6 +129,29 @@ ns1.insec.              60      IN      A       192.168.1.10
 ;; WHEN: Sun Feb 26 12:56:21 UTC 2023
 ;; MSG SIZE  rcvd: 82
 
+
+vagrant@client:~$ dig -x 192.168.1.10 @192.168.1.10
+
+; <<>> DiG 9.16.1-Ubuntu <<>> -x 192.168.1.10 @192.168.1.10
+;; global options: +cmd
+;; Got answer:
+;; ->>HEADER<<- opcode: QUERY, status: NOERROR, id: 16046
+;; flags: qr aa rd ra; QUERY: 1, ANSWER: 1, AUTHORITY: 0, ADDITIONAL: 1
+
+;; OPT PSEUDOSECTION:
+; EDNS: version: 0, flags:; udp: 4096
+; COOKIE: dad2f81d20d019a30100000063fca4c87dfaf42292c31339 (good)
+;; QUESTION SECTION:
+;10.1.168.192.in-addr.arpa.     IN      PTR
+
+;; ANSWER SECTION:
+10.1.168.192.in-addr.arpa. 60   IN      PTR     ns1.insec.
+
+;; Query time: 0 msec
+;; SERVER: 192.168.1.10#53(192.168.1.10)
+;; WHEN: Mon Feb 27 12:40:40 UTC 2023
+;; MSG SIZE  rcvd: 105
+
 ```
 
 3.3 How would you add an IPv6 address entry to a zone file?
@@ -163,8 +186,21 @@ dig ns1.insec SOA @192.168.1.10
 dig ns1.insec SOA @192.168.1.11
 
 # show logs
+root@lab1:/etc/bind# grep 'named' /var/log/syslog
+Feb 27 10:40:52 lab1 named[3099]: client @0x7feb140210e0 192.168.1.11#43779 (1.168.192.in-addr.arpa): transfer of '1.168.192.in-addr.arpa/IN': AXFR started (serial 2022120100)
+Feb 27 10:40:52 lab1 named[3099]: client @0x7feb140210e0 192.168.1.11#43779 (1.168.192.in-addr.arpa): transfer of '1.168.192.in-addr.arpa/IN': AXFR ended: 1 messages, 9 records, 306 bytes, 0.001 secs (306000 bytes/sec)
+Feb 27 10:40:52 lab1 named[3099]: client @0x7feb14013dd0 192.168.1.11#42815: received notify for zone '1.168.192.in-addr.arpa'
+Feb 27 10:40:53 lab1 named[3099]: client @0x7feb10015090 192.168.1.11#39699 (insec): transfer of 'insec/IN': AXFR started (serial 2022120100)
+Feb 27 10:40:53 lab1 named[3099]: client @0x7feb10015090 192.168.1.11#39699 (insec): transfer of 'insec/IN': AXFR ended: 1 messages, 10 records, 252 bytes, 0.001 secs (252000 bytes/sec)
 
-
+root@lab2:~# grep 'named' /var/log/syslog | grep 'transfer'
+Feb 27 07:54:27 ubuntu-focal named[3493]: transfer of 'insec/IN' from 192.168.1.10#53: connected using 192.168.1.11#38839
+Feb 27 07:54:27 ubuntu-focal named[3493]: zone insec/IN: transferred serial 2022120100
+Feb 27 07:54:27 ubuntu-focal named[3493]: transfer of 'insec/IN' from 192.168.1.10#53: Transfer status: success
+Feb 27 07:54:27 ubuntu-focal named[3493]: transfer of 'insec/IN' from 192.168.1.10#53: Transfer completed: 1 messages, 10 records, 252 bytes, 0.007 secs (36000 bytes/sec)
+Feb 27 07:54:27 ubuntu-focal named[3493]: transfer of '1.168.192.in-addr.arpa/IN' from 192.168.1.10#53: connected using 192.168.1.11#52733
+Feb 27 07:54:27 ubuntu-focal named[3493]: zone 1.168.192.in-addr.arpa/IN: transferred serial 2022120100
+Feb 27 07:54:27 ubuntu-focal named[3493]: transfer of '1.168.192.in-addr.arpa/IN' from 192.168.1.10#53: Transfer status: success
 ```
 
 4.2 Create a slave server for .insec
@@ -175,7 +211,7 @@ Explain the changes you made
 1. add zone definition in named.conf in slave node ns2.
 2. on the master server n1, add an entry (A, PTR and NS -records) for the slave server ns2.
 3. increase the serial number for the zone on the master server n1.
-3. rndc reload insec on the master server n1.
+3. 'rndc reload insec' on the master server n1.
 
 
 
@@ -324,6 +360,32 @@ ns2.not.insec.          60      IN      A       192.168.1.11
 ;; SERVER: 192.168.1.12#53(192.168.1.12)
 ;; WHEN: Sun Feb 26 12:58:38 UTC 2023
 ;; MSG SIZE  rcvd: 86
+
+
+
+
+vagrant@client:~$ dig -x  192.168.1.11 @192.168.1.11
+
+; <<>> DiG 9.16.1-Ubuntu <<>> -x 192.168.1.11 @192.168.1.11
+;; global options: +cmd
+;; Got answer:
+;; ->>HEADER<<- opcode: QUERY, status: NOERROR, id: 11828
+;; flags: qr aa rd ra; QUERY: 1, ANSWER: 2, AUTHORITY: 0, ADDITIONAL: 1
+
+;; OPT PSEUDOSECTION:
+; EDNS: version: 0, flags:; udp: 4096
+; COOKIE: 06450449133319f90100000063fcaa7a8a084493dc161901 (good)
+;; QUESTION SECTION:
+;11.1.168.192.in-addr.arpa.     IN      PTR
+
+;; ANSWER SECTION:
+11.1.168.192.in-addr.arpa. 60   IN      PTR     ns2.insec.
+11.1.168.192.in-addr.arpa. 60   IN      PTR     ns2.not.insec.
+
+;; Query time: 0 msec
+;; SERVER: 192.168.1.11#53(192.168.1.11)
+;; WHEN: Mon Feb 27 13:04:57 UTC 2023
+;; MSG SIZE  rcvd: 132
 ```
 
 6.1 Implement transaction signatures
@@ -434,9 +496,8 @@ TSIG (Transaction SIGnature) and SIG(0) (Signature 0) are both methods for authe
 
 TSIG uses a secret key shared between the client and server to sign each DNS transaction and ensure its integrity and authenticity. TSIG uses a message-digest algorithm (such as hmac-sha1) to generate the signature.
 
-SIG(0) (Signature 0), on the other hand, is part of the DNSSEC (Domain Name System Security Extensions) protocol, which provides a more comprehensive security mechanism for the DNS. DNSSEC uses public-key cryptography to secure the DNS data, and SIG(0) is used to sign individual resource records within a DNS zone. Unlike TSIG, which only provides transaction-level security, DNSSEC provides end-to-end security for the entire DNS data, from the root zone down to individual resource records.
+SIG(0) (Signature 0), on the other hand, is part of the DNSSEC (Domain Name System Security Extensions) protocol, which provides a more comprehensive security mechanism for the DNS. DNSSEC uses public-key cryptography to secure the DNS data, provoding more secure solution.
 
-In summary, while both TSIG and SIG(0) are methods for authenticating DNS transactions, TSIG provides transaction-level security while SIG(0) provides end-to-end security for the entire DNS data through the use of public-key cryptography.
 
 7.1 Based on the dig-queries, how does Pi-hole block domains on a DNS level?
 
@@ -471,6 +532,8 @@ FTL means: "Faster than Light"
 vim /etc/bind/named.conf.options // 将bind9的端口设置为5353 listen-on port 5353 { 127.0.0.1; 192.168.1.10;};
 # 将pihole设置为upstream DNS设置为bind9
 ```
+
+
 the second option (adapted this option) client -> bind9 -> pihole
 ```
 1. set pi-hole upstream DNS to 8.8.8.8

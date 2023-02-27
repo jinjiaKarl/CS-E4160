@@ -19,6 +19,12 @@ zone "not.insec" {
   file "/var/cache/bind/db.not.insec";
 };
 
+zone "1.168.192.in-addr.arpa" {
+    type slave;
+    masters { 192.168.1.11; };
+    file "/var/cache/bind/db.1.168.192.in-addr.arpa";
+};
+
 server 192.168.1.11 {
   keys {keyname;};
 };

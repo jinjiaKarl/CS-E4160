@@ -102,6 +102,7 @@ ns2  IN      A       192.168.1.11
 ; PTR records
 10 IN PTR ns1.insec. ; 192.168.1.10
 11 IN PTR ns2.insec. ; 192.168.1.11
+11 IN PTR ns2..not.insec. ; 192.168.1.11
 88 IN PTR host1.insec. ; 192.168.1.88
 EOF
 
