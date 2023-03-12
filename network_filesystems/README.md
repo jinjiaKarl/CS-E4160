@@ -8,14 +8,17 @@ Create two new users (e.g. "testuser1" and "testuser2") with adduser to both the
 
 ```
 
-useradd -m -u 1001 testuser1
-useradd -m -u 1002 testuser2
+useradd -m -u 2001 testuser1
+useradd -m -u 2002 testuser2
 
 # Get the Current User in Linux
 id
 
 # change user
 su testuser1
+
+$env:VAGRANT_EXPERIMENTAL="disks"
+VAGRANT_EXPERIMENTAL="disks" vagrant up
 ```
 
 
@@ -102,6 +105,8 @@ remote-host:/remote/directory /local/directory nfs user,auto 0 0
 
 In this line, the "user" option is included to allow users to mount the file system. The "auto" option specifies that the file system should be mounted at boot time, and the "0 0" options specify that the file system should not be dumped or checked by the file system checker.
 
+Use the mount command with the suid bit set, which allows users to mount network filesystems as themselves instead of root.
+
 It's important to note that allowing users to mount file systems can have security implications, so it's important to carefully consider the risks before making this change.
 
 
@@ -134,6 +139,7 @@ sshfs can be a good solution in various scenarios where remote access to files i
 
 Overall, sshfs can be a good solution when you need to access or share files securely over an SSH connection. It provides a convenient way to mount remote directories as if they were local directories, making it easy to work with files on remote machines.
 
+Already has a SSH connection or you need to access to the filesystem as a normal user.
 
 4.3 What are the advantages of FUSE?
 
@@ -144,7 +150,7 @@ FUSE (Filesystem in Userspace) has several advantages, including:
 
 * Compatibility: FUSE is compatible with a wide range of operating systems, including Linux, macOS, and Windows. This makes it easy to create filesystems that can be used on multiple platforms.
 
-* User-level access: FUSE allows users to access filesystems at the user level, which provides greater security and control. Users can mount and unmount filesystems without requiring root access, which reduces the risk of accidental damage or security breaches.
+* `User-level access`: FUSE allows users to access filesystems at the user level, which provides greater security and control. Users can mount and unmount filesystems without requiring root access, which reduces the risk of accidental damage or security breaches.
 
 * Performance: While FUSE adds an extra layer of abstraction, it has been optimized to provide high performance. FUSE uses a kernel-level caching mechanism to reduce the overhead of accessing files in userspace, which helps to maintain good performance.
 
@@ -213,12 +219,16 @@ Could not access /webdav/ (not WebDAV-enabled?):
 405 Method Not Allowed
 Connection to `lab1' closed.
 dav:!> exit
+
+
+# open locally
+ssh -NL 8081:localhost:80 vagrant@127.0.0.1 -p 2222
 ```
 
 5.2 Demonstrate mounting a WebDAV resource into the local filesystem.
 1.Install davfs2 package:
 ```
-sudo apt-get install davfs2
+sudo apt-get install davfs2 -y
 ```
 
 2.Create a mount point directory:
@@ -268,63 +278,17 @@ Now you can access the WebDAV resource by navigating to /mnt/webdav on your loca
 
 5.3 Does your implementation support versioning? If not, what should be added?
 
-Here are the steps to enable WebDAV versioning:
-
-1.Install the Apache mod_dav module:
-
-```
-sudo apt-get install libapache2-mod-dav
-
-sudo a2enmod dav
-```
-
-2.Edit the Apache configuration file for the WebDAV site:
-
-```
-sudo nano /etc/apache2/sites-available/000-default.conf
-```
-3.Add the following configuration inside the <Location /webdav> block:
-
-```
-DAV On
-DavDepthInfinity On
-AuthType Digest
-AuthName "your_auth_name"
-AuthUserFile path_to_your_password_file
-Require valid-user
-SVNPath /var/www/WebDAV/repository
-SVNIndexXSLT "/svnindex.xsl"
-```
-The SVNPath directive specifies the path to the versioning repository. The SVNIndexXSLT directive specifies the path to the stylesheet used to render the repository index.
-
-4.Restart Apache:
-
-```
-sudo systemctl restart apache2
-```
-5.Initialize the versioning repository:
-
-```
-sudo svnadmin create /var/www/WebDAV/repository
-```
-6.Change the ownership of the repository to the Apache user:
-
-```
-sudo chown -R www-data:www-data /var/www/WebDAV/repository
-```
-7.Mount the WebDAV resource with the version_1 option:
-
-```
-sudo mount -t davfs -o vers=1 https://<server_address>/webdav /mnt/webdav
-```
-
-The vers=1 option specifies that the WebDAV versioning protocol version 1 should be used.
+https://en.wikipedia.org/wiki/WebDAV
+http://webdav.org/specs/rfc3253.html
 
 
-After completing these steps, you should be able to use WebDAV versioning on the mounted resource. For example, you can use the svn command-line client to perform versioning operations on the mounted repository.
+The buit-in WebDAV module of Apache2 doesn't support versionging out of box.
+
+To enable versioning, you can use a third-party WebDAV server software that supports versioning `Delta-V`. Or you can use file system like ZFS or Btrfs. Or you can configure a WebDAV server with a version control system like Git.
 
 
-6. Raid 5
+Another option is to use a WebDAV client with built-in versioningg support, such as WebDrive client.
+1. Raid 5
 
 In this task, you are going to establish a Network Attached Storage (NAS) system with lab1 as a server.   The server should use Raid for data integrity. Set up Raid 5 on the NAT server and create EXT4 filesystem on the array.
 
