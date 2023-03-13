@@ -8,7 +8,7 @@ useradd -m -u 2001 testuser1
 useradd -m -u 2002 testuser2
 
 # nfs
-tee -a /etc/exports > /dev/null <<EOF
+sudo tee -a /etc/exports > /dev/null <<EOF
 /home *(rw,sync,no_subtree_check)
 EOF
 
@@ -121,6 +121,15 @@ sudo tee -a /etc/exports <<EOF
 /mnt/nfs *(rw,sync,no_subtree_check)
 EOF
 sudo systemctl restart nfs-kernel-server
+
+# sudo umount /dev/md0
+# mdadm --stop /dev/md0
+# mdadm --remove /dev/md0
+
+sudo tee -a /mnt/nfs/lab1.txt > /dev/null <<EOF
+from lab1
+EOF
+
 
 # sudo mdadm --fail /dev/md0 /dev/sdc
 # cat /proc/mdstat

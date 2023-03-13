@@ -58,18 +58,18 @@ To use TLS with NFS, you will need to perform the following steps:
 * Generate a TLS certificate and key for the NFS server.
 * Configure the NFS server to use the TLS certificate and key.
 * Configure the NFS client to use the same TLS certificate and key.
-* To enable TLS encryption for NFS traffic, you can use the "sec" mount option in the NFS client configuration. For example, if you want to use TLS, you can use the following mount command:
+* To enable TLS encryption for NFS traffic. For example, if you want to use TLS, you can use the following mount command:
 
 ```
-mount -o sec=krb5p,tls,vers=3,proto=tcp,nolock lab1:/home /mnt
+mount -o tls,vers=4,proto=tcp,nolock lab1:/home /mnt
 ```
 
-In this example, "krb5p" specifies that the Kerberos protocol should be used for authentication, "tls" specifies that TLS should be used for encryption, and "proto=tcp" specifies that TCP should be used as the transport protocol. The "nolock" option is used to disable the use of file locking, which can cause problems when using NFS over a network.
+In this example, "tls" specifies that TLS should be used for encryption, and "proto=tcp" specifies that TCP should be used as the transport protocol. The "nolock" option is used to disable the use of file locking, which can cause problems when using NFS over a network.
 
 It's important to note that configuring NFS to use TLS encryption can have performance implications, especially if the encryption is performed using software rather than hardware. You should test the performance of your NFS system with and without encryption to determine the impact on performance.
 
 
-3. Configuring and testing samba
+1. Configuring and testing samba
 
 
 Samba is unix/linux implementation for normal Windows network shares(netbios and CIFS (common internet filesystem)). You can configure samba via /etc/samba/smb.conf. You can access files shared with samba with command smbclient or by mounting the filesystem via mount, like with NFS. Mounting will require cifs-utils to be installed on lab2.
@@ -324,7 +324,7 @@ SSHFS:
 
 WebDAV:
 
-* Use case: Collaborative editing and management of files on remote web servers.
+* Use case: Collaborative editing and management of files on remote web servers based on HTTP
 * Where: Teams working on shared files and documents.
-* Why: Provides a way to access and edit files on a web server
+* Why: Provides a way to access and edit files on a web server or other WebDAV client
 * Weaknesses: May have performance issues with larger file transfers, may not be as secure as other solutions depending on how it is implemented.
