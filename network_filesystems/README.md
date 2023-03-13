@@ -55,18 +55,16 @@ One way to encrypt NFS traffic is to use the Transport Layer Security (TLS) prot
 
 To use TLS with NFS, you will need to perform the following steps:
 
-Generate a TLS certificate and key for the NFS server.
-Configure the NFS server to use the TLS certificate and key.
-Configure the NFS client to use the same TLS certificate and key.
-Ensure that the NFS client and server are using the same version of TLS and that they support the same set of encryption algorithms.
-Enable TLS encryption for NFS traffic.
-To enable TLS encryption for NFS traffic, you can use the "sec" mount option in the NFS client configuration. For example, if you want to use TLSv1.2 with AES-128 encryption, you can use the following mount command:
+* Generate a TLS certificate and key for the NFS server.
+* Configure the NFS server to use the TLS certificate and key.
+* Configure the NFS client to use the same TLS certificate and key.
+* To enable TLS encryption for NFS traffic, you can use the "sec" mount option in the NFS client configuration. For example, if you want to use TLS, you can use the following mount command:
 
 ```
-mount -o sec=krb5p,tls,vers=3,proto=tcp,nolock server:/export /mnt
+mount -o sec=krb5p,tls,vers=3,proto=tcp,nolock lab1:/home /mnt
 ```
 
-In this example, "krb5p" specifies that the Kerberos protocol should be used for authentication, "tls" specifies that TLS should be used for encryption, "vers=3" specifies that TLSv1.2 should be used, and "proto=tcp" specifies that TCP should be used as the transport protocol. The "nolock" option is used to disable the use of file locking, which can cause problems when using NFS over a network.
+In this example, "krb5p" specifies that the Kerberos protocol should be used for authentication, "tls" specifies that TLS should be used for encryption, and "proto=tcp" specifies that TCP should be used as the transport protocol. The "nolock" option is used to disable the use of file locking, which can cause problems when using NFS over a network.
 
 It's important to note that configuring NFS to use TLS encryption can have performance implications, especially if the encryption is performed using software rather than hardware. You should test the performance of your NFS system with and without encryption to determine the impact on performance.
 
@@ -90,14 +88,8 @@ https://www.myfreax.com/how-to-install-and-configure-samba-on-ubuntu-20-04how-to
 
 The problem with only root being able to use the mount command is that regular users are unable to mount remote file systems, including their own home directories. This means that they are unable to access their files and data stored on the remote file system.
 
-One workaround for this problem is to use the "user" mount option when mounting the file system. This allows regular users to mount the file system and access their files. Here's an example of how to do this:
 
-```
-sudo mount -t nfs remote-host:/remote/directory /local/directory -o user=username
-```
-In this command, "username" should be replaced with the username of the user who wants to mount the file system. The "user" option allows that user to mount the file system.
-
-Another option is to modify the /etc/fstab file to allow users to mount the file system. This involves adding the "user" option to the appropriate line in the file. Here's an example:
+One option is to modify the /etc/fstab file to allow users to mount the file system. This involves adding the "user" option to the appropriate line in the file. Here's an example:
 
 ```
 remote-host:/remote/directory /local/directory nfs user,auto 0 0
@@ -105,7 +97,16 @@ remote-host:/remote/directory /local/directory nfs user,auto 0 0
 
 In this line, the "user" option is included to allow users to mount the file system. The "auto" option specifies that the file system should be mounted at boot time, and the "0 0" options specify that the file system should not be dumped or checked by the file system checker.
 
-Use the mount command with the suid bit set, which allows users to mount network filesystems as themselves instead of root.
+The second option is to use the mount command with the suid bit set, which allows users to mount network filesystems as themselves instead of root.
+
+
+<!-- Another workaround for this problem is to use the "user" mount option when mounting the file system. This allows regular users to mount the file system and access their files. Here's an example of how to do this:
+
+```
+sudo mount -t nfs remote-host:/remote/directory /local/directory -o user=username
+```
+In this command, "username" should be replaced with the username of the user who wants to mount the file system. The "user" option allows that user to mount the file system. -->
+
 
 It's important to note that allowing users to mount file systems can have security implications, so it's important to carefully consider the risks before making this change.
 
@@ -129,17 +130,16 @@ sshfs [user@]host:[remote_directory] mountpoint [options]
 
 sshfs can be a good solution in various scenarios where remote access to files is required securely over the SSH protocol. Some examples of when sshfs can be a good solution include:
 
-* Accessing files on a remote server: If you need to access files on a remote server, sshfs can provide a secure way to do so over an SSH connection. This can be useful in situations where you need to transfer files back and forth between the local and remote machines.
-
-* Sharing files between computers: If you have multiple computers that need to share files, sshfs can be a good solution for securely mounting remote directories on local machines.
+* Accessing files on a remote server or sharing files between computers: If you need to access files on a remote server, sshfs can provide a secure way to do so over an SSH connection. 
 
 * Remote development: If you are a developer working on a remote server, sshfs can be used to mount the remote project directory on your local machine, allowing you to work on the code locally while the files are stored remotely.
 
 * Accessing cloud storage: If you are using cloud storage services like Amazon S3 or Google Cloud Storage, you can use sshfs to mount the remote storage on your local machine, making it easier to access and manage files.
 
+* Accessing the filesystem as a normal user instead of root.
+
 Overall, sshfs can be a good solution when you need to access or share files securely over an SSH connection. It provides a convenient way to mount remote directories as if they were local directories, making it easy to work with files on remote machines.
 
-Already has a SSH connection or you need to access to the filesystem as a normal user.
 
 4.3 What are the advantages of FUSE?
 
@@ -156,7 +156,6 @@ FUSE (Filesystem in Userspace) has several advantages, including:
 
 * Community support: FUSE has a large and active community of developers who are constantly working to improve the technology. This means that there is a wealth of resources available, including documentation, tutorials, and support forums, which makes it easier for developers to create and maintain FUSE filesystems.
 
-Overall, FUSE provides a flexible and compatible way to create filesystems in userspace. It offers many benefits, including improved security, performance, and community support, which make it a popular choice for creating custom filesystems.
 
 4.4 Why doesn't everyone use encrypted channels for all network filesystems?
 
@@ -171,8 +170,6 @@ While encrypted channels provide a higher level of security for network filesyst
 * Usability: Encrypted channels can add additional steps to the file access process, such as entering passwords or configuring encryption keys. This can make the system less user-friendly, which may be a concern in some environments.
 
 * Trade-offs between security and convenience: While encrypted channels provide a higher level of security, they may also make it more difficult to share files between different systems or users. In some cases, users may choose to sacrifice security for the sake of convenience, which can undermine the effectiveness of the encryption.
-
-Overall, while encrypted channels provide a higher level of security for network filesystems, there are several potential drawbacks that can limit their adoption. Organizations must carefully consider the trade-offs between security, performance, complexity, and usability when deciding whether to implement encrypted channels for their network filesystems.
 
 
 5. Configuring and testing WebDAV
@@ -210,70 +207,14 @@ https://pangruitao.com/post/2130
 
 
 ```
-# why does it not work?
-root@lab1:/etc/apache2# cadaver http://lab1/webdav
-Authentication required for pp on server `lab1':
-Username: pp
-Password: 
-Could not access /webdav/ (not WebDAV-enabled?):
-405 Method Not Allowed
-Connection to `lab1' closed.
-dav:!> exit
-
-
 # open locally
 ssh -NL 8081:localhost:80 vagrant@127.0.0.1 -p 2222
 ```
 
 5.2 Demonstrate mounting a WebDAV resource into the local filesystem.
-1.Install davfs2 package:
 ```
-sudo apt-get install davfs2 -y
+sudo mount -t davfs http://lab1/webdav /mnt/webdav -o username=testuser <<< "123456"
 ```
-
-2.Create a mount point directory:
-```
-sudo mkdir /mnt/webdav
-```
-
-
-3.Add your user to the davfs2 group to allow mounting:
-```
-sudo usermod -aG davfs2 <your_username>
-```
-
-4.Edit the davfs2 configuration file:
-
-```
-sudo nano /etc/davfs2/davfs2.conf
-```
-Uncomment the line # use_locks 0 by removing the # symbol.
-
-5.Create a secrets file with the credentials for the WebDAV server:
-
-```
-sudo nano /etc/davfs2/secrets
-```
-Add the following line, replacing <username> and <password> with your credentials:
-
-```
-https://<server_address>/webdav <username> <password>
-```
-
-6.Set the correct permissions for the secrets file:
-
-```
-sudo chmod 600 /etc/davfs2/secrets
-```
-
-7.Mount the WebDAV resource to the mount point:
-```
-sudo mount -t davfs https://<server_address>/webdav /mnt/webdav
-```
-
-You will be prompted to enter your username and password. Once you've entered them, the WebDAV resource will be mounted to the specified directory.
-
-Now you can access the WebDAV resource by navigating to /mnt/webdav on your local filesystem.
 
 
 5.3 Does your implementation support versioning? If not, what should be added?
@@ -296,9 +237,9 @@ You need at least three partitions to do this, you can either partition current 
 
 6.1 What is raid?  What is parity? Explain raid5?
 
-RAID stands for Redundant Array of Independent Disks, which is a method of combining multiple physical hard drives into a single logical unit to improve performance, reliability, and/or capacity.
+RAID stands for Redundant Array of Independent Disks, which is a method of combining multiple physical hard drives into a single logical unit to improve performance, reliability, and capacity.
 
-Parity is a technique used in RAID to protect data against disk failures. Parity information is generated and stored across multiple drives in the RAID array, allowing the system to rebuild lost data in the event of a disk failure. Parity stores information in each disk, Let’s say we have 4 disks, in 4 disks one disk space will be split into all disks to store the parity information. If any one of the disks fails still we can get the data by rebuilding from parity information after replacing the failed disk.
+Parity is a technique used in RAID to protect data against disk failures. Parity information is generated and stored across multiple drives in the RAID array, allowing the system to rebuild lost data in the event of a disk failure. Parity stores information in each disk. 
 
 RAID 5 is a specific type of RAID that uses block-level striping and parity data across multiple drives. It requires a minimum of three disks to implement, and provides a good balance of performance, capacity, and data protection. In RAID 5, data is split into blocks and distributed across all the disks in the array, with parity information stored on a separate disk. If one disk fails, the system can use the parity data to reconstruct the lost data and store it on a replacement disk. However, if two disks fail, data loss can occur, as the system can no longer reconstruct the lost data. RAID 5 is often used in file servers and other applications where data protection is important, but performance and capacity are also key factors.
 
@@ -385,5 +326,5 @@ WebDAV:
 
 * Use case: Collaborative editing and management of files on remote web servers.
 * Where: Teams working on shared files and documents.
-* Why: Provides a way to access and edit files on a web server, with features like versioning, locking, and sharing.
+* Why: Provides a way to access and edit files on a web server
 * Weaknesses: May have performance issues with larger file transfers, may not be as secure as other solutions depending on how it is implemented.
