@@ -69,8 +69,38 @@ Now you will add scalability to your service by using load balancers and deploym
 
 3.2 Demonstrate the website is running by connecting to the frontend load balancer. How does this differ from connecting to one of the pods?
 
+pods's ip is not static, so it is not easy to connect to it. But the load balancer's ip is static, so it is easy to connect to it.
 
 3.3 Explain the contents of sa-frontend-deployment.yaml, including what changes you made
 
 
 3.4 How can you scale a deployment after it has been deployed?
+
+```
+apiVersion: autoscaling/v1
+ kind: HorizontalPodAutoscaler
+ metadata:
+   name: api
+ spec:
+   scaleTargetRef:
+     apiVersion: apps/v1
+     kind: Deployment
+     name: api
+   minReplicas: 1
+   maxReplicas: 5
+   targetCPUUtilizationPercentage: 20
+```
+
+Scaling a deployment after it has been deployed involves increasing or decreasing the resources allocated to the deployment to meet changing demand or performance requirements. Here are a few ways to scale a deployment:
+
+Horizontal scaling: Horizontal scaling involves adding more instances of the same type to the deployment to handle increased demand. For example, if a web application is receiving more traffic than usual, adding more servers to handle the traffic can help distribute the load.
+
+Vertical scaling: Vertical scaling involves increasing the resources allocated to a single instance of the deployment. For example, upgrading the CPU, memory, or disk capacity of a server can help improve performance.
+
+Auto-scaling: Auto-scaling is a technique that allows a deployment to automatically adjust its resources based on demand. For example, an auto-scaling group in Amazon Web Services (AWS) can automatically add or remove instances based on the CPU utilization or network traffic.
+
+Container orchestration: Container orchestration platforms like Kubernetes can automatically scale deployments based on metrics like CPU and memory usage, as well as custom metrics.
+
+Load balancing: Load balancing involves distributing incoming network traffic across multiple instances of a deployment. This can help improve availability and performance, and it can also enable horizontal scaling by automatically adding or removing instances based on traffic patterns.
+
+It's important to note that scaling a deployment can have costs associated with it, both in terms of infrastructure and operational complexity. Therefore, it's important to carefully consider the trade-offs between scaling and cost when making decisions about deployment architecture.
