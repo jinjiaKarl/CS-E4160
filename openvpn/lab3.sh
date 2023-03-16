@@ -3,6 +3,8 @@
 sudo apt-get update
 sudo apt-get install openvpn easy-rsa -y
 
+sudo mkdir -p /usr/share/easy-rsa/pki/issued
+sudo mkdir -p /usr/share/easy-rsa/pki/private
 
 sudo tee -a /usr/share/easy-rsa/pki/ca.crt > /dev/null <<EOF
 -----BEGIN CERTIFICATE-----
@@ -170,7 +172,22 @@ a13da489c4c3f8fd0b45b9be8e4c8ca1
 -----END OpenVPN Static key V1-----
 EOF
 
-sudo tee -a /usr/share/easy-rsa/client.ovpn > /dev/null <<E
+
+sudo cp /usr/share/easy-rsa/pki/ca.crt /usr/share/easy-rsa/pki/issued/vpnclient.crt /usr/share/easy-rsa/pki/private/vpnclient.key /usr/share/easy-rsa/ta.key /etc/openvpn/
+
+
+# route
+sudo tee -a /etc/openvpn/bash.conf > /dev/null <<EOF
+remote 192.168.64.20 1194
+#ca ca.crt
+#cert client.crt
+#key client.key
+#tls-auth ta.key 1
+
+cipher AES-256-CBC
+auth SHA256
+key-direction 1
 EOF
-sudo cd /usr/share/easy-rsa
-sudo cp pki/ca.crt pki/issued/vpnclient.crt pki/private/vpnclient.key ta.key /etc/openvpn/
+sudo bash /etc/openvpn/make_client.sh vpnclient
+# 
+# sudo systemctl start openvpn@client

@@ -20,6 +20,14 @@ sudo source /usr/share/easy-rsa/vars
 # sudo /usr/share/easy-rsa/easyrsa gen-dh
 # sudo /usr/sbin/openvpn --genkey --secret ta.key
 
+
+# sudo /usr/share/easy-rsa/easyrsa init-pki
+# sudo /usr/share/easy-rsa/easyrsa build-ca nopass
+# ./easyrsa gen-req vpnserver nopass  
+# ./easyrsa sign-req server vpnserver
+# sudo /usr/share/easy-rsa/easyrsa gen-dh
+# sudo /usr/sbin/openvpn --genkey --secret ta.key
+
 sudo tee -a /usr/share/easy-rsa/pki/ca.crt > /dev/null <<EOF
 -----BEGIN CERTIFICATE-----
 MIIDSzCCAjOgAwIBAgIUUkTk65BMsq+1vQ9Z5663x/yNgLMwDQYJKoZIhvcNAQEL
@@ -199,9 +207,27 @@ a13da489c4c3f8fd0b45b9be8e4c8ca1
 -----END OpenVPN Static key V1-----
 EOF
 
-sudo cd /usr/share/easy-rsa
-sudo cp pki/ca.crt pki/issued/vpnserver.crt pki/private/vpnserver.key pki/dh.pem ta.key /etc/openvpn/
+sudo cp /usr/share/easy-rsa/pki/ca.crt /usr/share/easy-rsa/pki/issued/vpnserver.crt /usr/share/easy-rsa/pki/private/vpnserver.key /usr/share/easy-rsa/pki/dh.pem /usr/share/easy-rsa/ta.key /etc/openvpn/
 
 sudo gzip -d /usr/share/doc/openvpn/examples/sample-config-files/server.conf.gz
 sudo cp /usr/share/doc/openvpn/examples/sample-config-files/server.conf /etc/openvpn/
-sudo cp /usr/share/doc/openvpn/examples/sample-config-files/client.conf /etc/openvpn/client.ovpn
+sudo cp /usr/share/doc/openvpn/examples/sample-config-files/client.conf /etc/openvpn/client.conf
+
+#sudo echo "net.ipv4.ip_forward=1" >> /etc/sysctl.conf
+#sudo sysctl -p
+#sudo systemctl restart openvpn@server
+#sudo systemctl status openvpn@server
+#sudo systemctl enable openvpn@server #enable it so that it starts automatically at boot
+
+
+# config openvpn server
+
+
+# bridge setup
+sudo makdir /etc/openvpn/scripts
+sudo cp /usr/share/doc/openvpn/examples/sample-scripts/bridge-start scripts/
+sudo cp /usr/share/doc/openvpn/examples/sample-scripts/bridge-stop scripts/
+
+
+# route setup
+# sudo openvpn --config server.conf # check if it works
