@@ -1,6 +1,4 @@
 # Roadwarrior
-
-sudo apt-get update
 sudo apt-get install openvpn easy-rsa -y
 
 sudo mkdir -p /usr/share/easy-rsa/pki/issued
@@ -176,18 +174,11 @@ EOF
 sudo cp /usr/share/easy-rsa/pki/ca.crt /usr/share/easy-rsa/pki/issued/vpnclient.crt /usr/share/easy-rsa/pki/private/vpnclient.key /usr/share/easy-rsa/ta.key /etc/openvpn/
 
 
-# route
-sudo tee -a /etc/openvpn/bash.conf > /dev/null <<EOF
-remote 192.168.64.20 1194
-#ca ca.crt
-#cert client.crt
-#key client.key
-#tls-auth ta.key 1
+sudo cp /vagrant/client.conf /etc/openvpn/
+sudo systemctl start openvpn@client
+# sudo systemctl stop openvpn@client
 
-cipher AES-256-CBC
-auth SHA256
-key-direction 1
-EOF
-sudo bash /etc/openvpn/make_client.sh vpnclient
-# 
+
+# route
+# sudo cp /vagrant/client_route.conf /etc/openvpn/client.conf
 # sudo systemctl start openvpn@client

@@ -17,6 +17,80 @@ In this exercise, the enp0s3 interfaces are only used for SSH remote access. Do 
 
 1.1 Present your network configuration. What IPs did you assign to the interfaces (4 interfaces in all) of each of the three hosts?
 
+```
+# lab1 (GW)
+vagrant@lab1:~$ ip a
+1: lo: <LOOPBACK,UP,LOWER_UP> mtu 65536 qdisc noqueue state UNKNOWN group default qlen 1000
+    link/loopback 00:00:00:00:00:00 brd 00:00:00:00:00:00
+    inet 127.0.0.1/8 scope host lo
+       valid_lft forever preferred_lft forever
+    inet6 ::1/128 scope host
+       valid_lft forever preferred_lft forever
+2: enp0s3: <BROADCAST,MULTICAST,UP,LOWER_UP> mtu 1500 qdisc fq_codel state UP group default qlen 1000
+    link/ether 02:cd:6a:13:84:49 brd ff:ff:ff:ff:ff:ff
+    inet 10.0.2.15/24 brd 10.0.2.255 scope global dynamic enp0s3
+       valid_lft 86192sec preferred_lft 86192sec
+    inet6 fe80::cd:6aff:fe13:8449/64 scope link
+       valid_lft forever preferred_lft forever
+3: enp0s8: <BROADCAST,MULTICAST,UP,LOWER_UP> mtu 1500 qdisc fq_codel state UP group default qlen 1000
+    link/ether 08:00:27:9e:f6:c4 brd ff:ff:ff:ff:ff:ff
+    inet 192.168.0.2/24 brd 192.168.0.255 scope global enp0s8
+       valid_lft forever preferred_lft forever
+    inet6 fe80::a00:27ff:fe9e:f6c4/64 scope link
+       valid_lft forever preferred_lft forever
+4: enp0s9: <BROADCAST,MULTICAST,UP,LOWER_UP> mtu 1500 qdisc fq_codel state UP group default qlen 1000
+    link/ether 08:00:27:91:d8:67 brd ff:ff:ff:ff:ff:ff
+    inet 192.168.2.2/24 brd 192.168.2.255 scope global enp0s9
+       valid_lft forever preferred_lft forever
+    inet6 fe80::a00:27ff:fe91:d867/64 scope link
+       valid_lft forever preferred_lft forever
+
+# lab2 (SS)
+
+1: lo: <LOOPBACK,UP,LOWER_UP> mtu 65536 qdisc noqueue state UNKNOWN group default qlen 1000
+    link/loopback 00:00:00:00:00:00 brd 00:00:00:00:00:00
+    inet 127.0.0.1/8 scope host lo
+       valid_lft forever preferred_lft forever
+    inet6 ::1/128 scope host
+       valid_lft forever preferred_lft forever
+2: enp0s3: <BROADCAST,MULTICAST,UP,LOWER_UP> mtu 1500 qdisc fq_codel state UP group default qlen 1000
+    link/ether 02:cd:6a:13:84:49 brd ff:ff:ff:ff:ff:ff
+    inet 10.0.2.15/24 brd 10.0.2.255 scope global dynamic enp0s3
+       valid_lft 86248sec preferred_lft 86248sec
+    inet6 fe80::cd:6aff:fe13:8449/64 scope link
+       valid_lft forever preferred_lft forever
+3: enp0s8: <BROADCAST,MULTICAST,UP,LOWER_UP> mtu 1500 qdisc fq_codel state UP group default qlen 1000
+    link/ether 08:00:27:69:96:9e brd ff:ff:ff:ff:ff:ff
+    inet 192.168.0.3/24 brd 192.168.0.255 scope global enp0s8
+       valid_lft forever preferred_lft forever
+    inet6 fe80::a00:27ff:fe69:969e/64 scope link
+       valid_lft forever preferred_lft forever
+
+# lab3 (RW)
+
+vagrant@lab3:~$ ip a
+1: lo: <LOOPBACK,UP,LOWER_UP> mtu 65536 qdisc noqueue state UNKNOWN group default qlen 1000
+    link/loopback 00:00:00:00:00:00 brd 00:00:00:00:00:00
+    inet 127.0.0.1/8 scope host lo
+       valid_lft forever preferred_lft forever
+    inet6 ::1/128 scope host
+       valid_lft forever preferred_lft forever
+2: enp0s3: <BROADCAST,MULTICAST,UP,LOWER_UP> mtu 1500 qdisc fq_codel state UP group default qlen 1000
+    link/ether 02:cd:6a:13:84:49 brd ff:ff:ff:ff:ff:ff
+    inet 10.0.2.15/24 brd 10.0.2.255 scope global dynamic enp0s3
+       valid_lft 86302sec preferred_lft 86302sec
+    inet6 fe80::cd:6aff:fe13:8449/64 scope link
+       valid_lft forever preferred_lft forever
+3: enp0s8: <BROADCAST,MULTICAST,UP,LOWER_UP> mtu 1500 qdisc fq_codel state UP group default qlen 1000
+    link/ether 08:00:27:15:9b:f0 brd ff:ff:ff:ff:ff:ff
+    inet 192.168.2.3/24 brd 192.168.2.255 scope global enp0s8
+       valid_lft forever preferred_lft forever
+    inet6 fe80::a00:27ff:fe15:9bf0/64 scope link
+       valid_lft forever preferred_lft forever
+
+
+
+```
 
 
 ## 2. Setting up a PKI (Public Key Infrastructure)
@@ -88,6 +162,9 @@ verb 5
 ```
 # server.conf
 server-bridge 192.168.2.10 255.255.255.0 192.168.0.30 192.168.0.40
+
+
+10.8.0.0/24
 ```
 
 3.3 Where can you find the log messages of the server by default? How can you change this?
@@ -107,6 +184,26 @@ OpenVPN provides a script for this in /usr/share/doc/openvpn/examples/sample-scr
 
 4.1 Show with ifconfig that you have created the new interfaces (virtual and bridge). What's the IP of the bridge interface?
 
+```
+3: enp0s8: <BROADCAST,MULTICAST,PROMISC,UP,LOWER_UP> mtu 1500 qdisc fq_codel master br0 state UP group default qlen 1000
+    link/ether 08:00:27:9e:f6:c4 brd ff:ff:ff:ff:ff:ff
+    inet6 fe80::a00:27ff:fe9e:f6c4/64 scope link
+       valid_lft forever preferred_lft forever
+4: enp0s9: <BROADCAST,MULTICAST,UP,LOWER_UP> mtu 1500 qdisc fq_codel state UP group default qlen 1000
+    link/ether 08:00:27:91:d8:67 brd ff:ff:ff:ff:ff:ff
+    inet 192.168.2.2/24 brd 192.168.2.255 scope global enp0s9
+       valid_lft forever preferred_lft forever
+    inet6 fe80::a00:27ff:fe91:d867/64 scope link
+       valid_lft forever preferred_lft forever
+5: tap0: <NO-CARRIER,BROADCAST,MULTICAST,PROMISC,UP> mtu 1500 qdisc fq_codel master br0 state DOWN group default qlen 100
+    link/ether 3a:e0:c8:36:47:82 brd ff:ff:ff:ff:ff:ff
+6: br0: <BROADCAST,MULTICAST,UP,LOWER_UP> mtu 1500 qdisc noqueue state UP group default qlen 1000
+    link/ether 08:00:27:9e:f6:c4 brd ff:ff:ff:ff:ff:ff
+    inet 192.168.0.2/24 brd 192.168.0.255 scope global br0
+       valid_lft forever preferred_lft forever
+    inet6 fe80::a00:27ff:fe9e:f6c4/64 scope link
+       valid_lft forever preferred_lft forever
+```
 
 4.2 What is the difference between routing and bridging in VPN? What are the benefits/disadvantages of the two? When would you use routing and when bridging?
 https://openvpn.net/community-resources/how-to/#determining-whether-to-use-a-routed-or-bridged-vpn
@@ -165,11 +262,10 @@ key-direction 1
 5.2 Demonstrate that you can reach the SS from the RW. Setup a server on the client with netcat and connect to this with telnet/nc. Send messages to both directions.
 ```
 # set up a server on the client with netcat
-netcat -l 8080
+vagrant@lab2:~$  nc -l 8080
 
 # connect to this with telnet/nc on the server
-nc 192.168.64.20 8080
-nc 192.168.2.11 8080
+vagrant@lab3:~$ nc lab2 8080
 
 
 ```
@@ -177,10 +273,31 @@ nc 192.168.2.11 8080
 5.3 Capture incoming/outgoing traffic on GW's enp0s9 or RW's enp0s8. Why can't you read the messages sent in 5.2 (in plain text) even if you comment out the cipher command in the config-files?
 ```
 # GW
-tcpdump -i enp0s9 -w /tmp/gw.pcap
+root@lab1:/etc/openvpn# tcpdump -i enp0s9
+tcpdump: verbose output suppressed, use -v or -vv for full protocol decode
+listening on enp0s9, link-type EN10MB (Ethernet), capture size 262144 bytes
+19:48:03.771206 IP lab3.50885 > lab1.openvpn: UDP, length 77
+19:48:03.771535 IP lab1.openvpn > lab3.50885: UDP, length 50
+19:48:03.771835 IP lab1.openvpn > lab3.50885: UDP, length 191
+19:48:03.772932 IP lab3.50885 > lab1.openvpn: UDP, length 50
+19:48:07.802737 ARP, Request who-has lab3 tell lab1, length 28
+19:48:07.803427 ARP, Reply lab3 is-at 08:00:27:a0:0f:67 (oui Unknown), length 46
+19:48:09.964226 IP lab3.50885 > lab1.openvpn: UDP, length 98
+19:48:09.965683 IP lab1.openvpn > lab3.50885: UDP, length 98
+19:48:09.966652 IP lab3.50885 > lab1.openvpn: UDP, length 90
+19:48:10.099769 IP lab1.openvpn > lab3.50885: UDP, length 94
+19:48:11.178139 IP lab3.50885 > lab1.openvpn: UDP, length 94
+19:48:11.179556 IP lab1.openvpn > lab3.50885: UDP, length 90
+19:48:11.297652 IP6 fe80::a00:27ff:fea0:f67 > ip6-allrouters: ICMP6, router solicitation, length 16
+19:48:12.881757 IP lab3.50885 > lab1.openvpn: UDP, length 90
+19:48:12.884196 IP lab1.openvpn > lab3.50885: UDP, length 90
+19:48:12.885444 IP lab3.50885 > lab1.openvpn: UDP, length 90
+
+
+
 
 # RW
-tcpdump -i enp0s8 -w /tmp/rw.pcap
+tcpdump -i enp0s8
 ```
 
 If you comment out the cipher command in the OpenVPN server or client configuration file, the VPN traffic will be encrypted using the default cipher specified by OpenVPN (which is AES-256-CBC as of version 2.5). However, even if you use a cipher that does not provide encryption, such as "none", you still won't be able to read the messages sent in plain text.
@@ -202,10 +319,22 @@ It's important to note that OpenVPN uses a strong encryption algorithm to protec
 5.5 Traceroute RW from SS and vice versa. Explain the result.
 ```
 # RW to SS
-traceroute 192.168.0.11
+vagrant@lab3:~$  traceroute lab2
+traceroute to lab2 (192.168.0.3), 64 hops max
+  1   192.168.0.3  2.574ms  2.291ms  2.435ms
+
+
 
 # SS to RW
-traceroute 192.168.2.11
+vagrant@lab2:~$ ip route
+default via 10.0.2.2 dev enp0s3 proto dhcp src 10.0.2.15 metric 100
+10.0.2.0/24 dev enp0s3 proto kernel scope link src 10.0.2.15
+10.0.2.2 dev enp0s3 proto dhcp scope link src 10.0.2.15 metric 100
+192.168.0.0/24 dev enp0s8 proto kernel scope link src 192.168.0.3
+vagrant@lab2:~$ traceroute lab3
+traceroute to lab3 (192.168.2.3), 64 hops max
+  1   10.0.2.2  0.323ms  0.294ms  0.285ms
+  2   *  *  *
 ```
 
 
@@ -273,3 +402,38 @@ Mar 16 15:12:22 lab3 ovpn-client[3768]: Initialization Sequence Completed
 
 
 6.2 Show with ifconfig that you have created the new virtual IP interfaces . What's the IP  address?
+
+
+```
+root@lab1:/etc/openvpn# ip a
+1: lo: <LOOPBACK,UP,LOWER_UP> mtu 65536 qdisc noqueue state UNKNOWN group default qlen 1000
+    link/loopback 00:00:00:00:00:00 brd 00:00:00:00:00:00
+    inet 127.0.0.1/8 scope host lo
+       valid_lft forever preferred_lft forever
+    inet6 ::1/128 scope host
+       valid_lft forever preferred_lft forever
+2: enp0s3: <BROADCAST,MULTICAST,UP,LOWER_UP> mtu 1500 qdisc fq_codel state UP group default qlen 1000
+    link/ether 02:cd:6a:13:84:49 brd ff:ff:ff:ff:ff:ff
+    inet 10.0.2.15/24 brd 10.0.2.255 scope global dynamic enp0s3
+       valid_lft 85000sec preferred_lft 85000sec
+    inet6 fe80::cd:6aff:fe13:8449/64 scope link
+       valid_lft forever preferred_lft forever
+3: enp0s8: <BROADCAST,MULTICAST,PROMISC,UP,LOWER_UP> mtu 1500 qdisc fq_codel state UP group default qlen 1000
+    link/ether 08:00:27:9e:f6:c4 brd ff:ff:ff:ff:ff:ff
+    inet 192.168.0.2/24 brd 192.168.0.255 scope global enp0s8
+       valid_lft forever preferred_lft forever
+    inet6 fe80::a00:27ff:fe9e:f6c4/64 scope link
+       valid_lft forever preferred_lft forever
+4: enp0s9: <BROADCAST,MULTICAST,PROMISC,UP,LOWER_UP> mtu 1500 qdisc fq_codel state UP group default qlen 1000
+    link/ether 08:00:27:91:d8:67 brd ff:ff:ff:ff:ff:ff
+    inet 192.168.2.2/24 brd 192.168.2.255 scope global enp0s9
+       valid_lft forever preferred_lft forever
+    inet6 fe80::a00:27ff:fe91:d867/64 scope link
+       valid_lft forever preferred_lft forever
+8: tun0: <POINTOPOINT,MULTICAST,NOARP,UP,LOWER_UP> mtu 1500 qdisc fq_codel state UNKNOWN group default qlen 100
+    link/none
+    inet 10.8.0.1 peer 10.8.0.2/32 scope global tun0
+       valid_lft forever preferred_lft forever
+    inet6 fe80::4132:5ccb:6f3c:18f2/64 scope link stable-privacy
+       valid_lft forever preferred_lft forever
+```

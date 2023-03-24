@@ -1,17 +1,16 @@
 # Gateway
-sudo apt-get update
 sudo apt-get install openvpn easy-rsa -y
 
-sudo tee -a /usr/share/easy-rsa/vars > /dev/null <<EOF
-export KEY_COUNTRY="FI"
-export KEY_PROVINCE="Espoo"
-export KEY_CITY="Espoo"
-export KEY_ORG="aalto"
-export KEY_EMAIL="jinjia.zhang@aalto.fi"
-export KEY_OU="aalto"
-EOF
+# sudo tee -a /usr/share/easy-rsa/vars > /dev/null <<EOF
+# export KEY_COUNTRY="FI"
+# export KEY_PROVINCE="Espoo"
+# export KEY_CITY="Espoo"
+# export KEY_ORG="aalto"
+# export KEY_EMAIL="jinjia.zhang@aalto.fi"
+# export KEY_OU="aalto"
+# EOF
 
-sudo source /usr/share/easy-rsa/vars
+# sudo source /usr/share/easy-rsa/vars
 
 # sudo /usr/share/easy-rsa/easyrsa init-pki
 # sudo /usr/share/easy-rsa/easyrsa build-ca nopass
@@ -27,6 +26,9 @@ sudo source /usr/share/easy-rsa/vars
 # ./easyrsa sign-req server vpnserver
 # sudo /usr/share/easy-rsa/easyrsa gen-dh
 # sudo /usr/sbin/openvpn --genkey --secret ta.key
+
+sudo mkdir -p /usr/share/easy-rsa/pki/issued
+sudo mkdir -p /usr/share/easy-rsa/pki/private
 
 sudo tee -a /usr/share/easy-rsa/pki/ca.crt > /dev/null <<EOF
 -----BEGIN CERTIFICATE-----
@@ -209,25 +211,33 @@ EOF
 
 sudo cp /usr/share/easy-rsa/pki/ca.crt /usr/share/easy-rsa/pki/issued/vpnserver.crt /usr/share/easy-rsa/pki/private/vpnserver.key /usr/share/easy-rsa/pki/dh.pem /usr/share/easy-rsa/ta.key /etc/openvpn/
 
-sudo gzip -d /usr/share/doc/openvpn/examples/sample-config-files/server.conf.gz
-sudo cp /usr/share/doc/openvpn/examples/sample-config-files/server.conf /etc/openvpn/
-sudo cp /usr/share/doc/openvpn/examples/sample-config-files/client.conf /etc/openvpn/client.conf
+# sudo gzip -d /usr/share/doc/openvpn/examples/sample-config-files/server.conf.gz
+# sudo cp /usr/share/doc/openvpn/examples/sample-config-files/server.conf /etc/openvpn/
+# sudo cp /usr/share/doc/openvpn/examples/sample-config-files/client.conf /etc/openvpn/client.conf
 
-#sudo echo "net.ipv4.ip_forward=1" >> /etc/sysctl.conf
-#sudo sysctl -p
-#sudo systemctl restart openvpn@server
+sudo cp /usr/share/doc/openvpn/examples/sample-scripts/bridge-start /etc/openvpn/
+sudo sed -i 's/eth0/enp0s8/g' /etc/openvpn/bridge-start
+sudo sed -i 's/192.168.8./192.168.0./g' /etc/openvpn/bridge-start
+sudo sed -i 's/192.168.0.4/192.168.0.2/g' /etc/openvpn/bridge-start
+sudo /etc/openvpn/bridge-start
+
+sudo cp /vagrant/server.conf /etc/openvpn/
+sudo systemctl restart openvpn@server
+
 #sudo systemctl status openvpn@server
 #sudo systemctl enable openvpn@server #enable it so that it starts automatically at boot
 
 
-# config openvpn server
-
-
-# bridge setup
-sudo makdir /etc/openvpn/scripts
-sudo cp /usr/share/doc/openvpn/examples/sample-scripts/bridge-start scripts/
-sudo cp /usr/share/doc/openvpn/examples/sample-scripts/bridge-stop scripts/
+# sudo systemctl stop openvpn@server
+# sudo cp /usr/share/doc/openvpn/examples/sample-scripts/bridge-stop /etc/openvpn/
+# sudo /etc/openvpn/bridge-stop
 
 
 # route setup
-# sudo openvpn --config server.conf # check if it works
+# sudo cp /vagrant/server_route.conf /etc/openvpn/server.conf
+# # sudo openvpn --config server.conf # check if it works
+# sudo tee -a /etc/sysctl.conf > /dev/null <<EOF
+# net.ipv4.ip_forward=1
+# EOF
+# sudo iptables -t nat -A POSTROUTING -o enp0s8 -j MASQUERADE
+# sudo systemctl restart openvpn@server
