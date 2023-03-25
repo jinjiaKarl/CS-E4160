@@ -111,7 +111,15 @@ After you have generated all the necessary certificates and keys, copy the neces
     * `vpnclient.crt`
     * `vpnclient.key`
 * create a strong Diffie-Hellman key to use during key exchange `./easyrsa gen-dh`
-* generate an HMAC signature to strengthen the server’s TLS integrity verification capabilities `openvpn --genkey --secret ta.key`
+* generate an HMAC signature key to strengthen the server’s TLS integrity verification capabilities `openvpn --genkey --secret ta.key`
+
+Client 
+* `ca.key`
+* `vpnclient.crt`
+* `vpnclient.key`
+* `dh.pem`
+* `tak.key`
+  
 
 2.2 Is there a simpler way of authentication available in OpenVPN? What are its benefits/drawbacks?
 
@@ -121,16 +129,20 @@ In Static Key Authentication, both the client and the server share a pre-shared 
 
 Benefits:
 
-Simple to configure and set up
-Does not require a PKI or certificate infrastructure
-Fast and efficient because it does not need to perform complex cryptographic operations
+* Simple to configure and set up
+* Does not require a PKI or certificate infrastructure
+* Fast and efficient because it does not need to perform complex cryptographic operations
+
 Drawbacks:
 
-Less secure than certificate-based authentication methods since the same pre-shared key is used for all connections, making it easier for an attacker to intercept and potentially compromise the key.
-Difficult to revoke a key if it gets compromised, as the same key is used for all connections.
+* Less secure than certificate-based authentication methods since the same pre-shared key is used for all connections, making it easier for an attacker to intercept and potentially compromise the key.
+* Difficult to revoke a key if it gets compromised, as the same key is used for all connections.
 Cannot provide user-level authentication, meaning all clients with the same key have the same level of access.
+
 In summary, while Static Key Authentication is simpler to set up and configure, it may not be suitable for environments that require a higher level of security and user-level authentication.
 
+
+Another simpler way is to securely obtain a username and password from a connecting client, and to use that information as a basis for authenticating the client. It is also possible to disable the use of client certificates, and force username/password authentication only. It uses client-cert-not-required may remove the cert and key directives from the client configuration file, but not the ca directive, because it is necessary for the client to verify the server certificate.
 
 
 ## 3. Configuring the VPN server
@@ -144,27 +156,22 @@ https://blog.mycroft.wang/2021/09/16/ubuntu-an-zhuang-openvpn-fu-wu-qi/
 
 
 ```
+
+
 # server.conf
 dev tap0
-server-bridge 192.168.64.20 255.255.255.0 192.168.64.30 192.168.8.40
-#server-bridge 192.168.2.10 255.255.255.0 192.168.0.30 192.168.0.40
-duplicate-cn
-# OpenVPN的状态日志，默认为/var/log/openvpn/openvpn-status.log
-status openvpn-status.log 
-# OpenVPN的运行日志，默认为/var/log/openvpn/openvpn.log
-log-append openvpn.log
-# 改成verb 5可以多查看一些调试信息
-verb 5
+server-bridge 192.168.0.2 255.255.255.0 192.168.0.50 192.168.0.100
+
 ```
 
 
 3.2 What IP address space did you allocate to the OpenVPN clients?
 ```
 # server.conf
-server-bridge 192.168.2.10 255.255.255.0 192.168.0.30 192.168.0.40
+server-bridge 192.168.0.2 255.255.255.0 192.168.0.50 192.168.0.100
 
 
-10.8.0.0/24
+192.168.0.50 192.168.0.100
 ```
 
 3.3 Where can you find the log messages of the server by default? How can you change this?
@@ -172,8 +179,10 @@ server-bridge 192.168.2.10 255.255.255.0 192.168.0.30 192.168.0.40
 # server.conf
 # OpenVPN的状态日志，默认为/var/log/openvpn/openvpn-status.log
 status openvpn-status.log 
-# OpenVPN的运行日志，默认为/var/log/openvpn/openvpn.log
+# default: syslog; /var/log/openvpn/openvpn.log
 log-append openvpn.log
+# 改成verb 5可以多查看一些调试信息
+verb 5
 ```
 
 
@@ -205,6 +214,9 @@ OpenVPN provides a script for this in /usr/share/doc/openvpn/examples/sample-scr
        valid_lft forever preferred_lft forever
 ```
 
+IP of the bridge is same as enp0s8 before. It is 192.168.0.2.
+
+
 4.2 What is the difference between routing and bridging in VPN? What are the benefits/disadvantages of the two? When would you use routing and when bridging?
 https://openvpn.net/community-resources/how-to/#determining-whether-to-use-a-routed-or-bridged-vpn
 Routing and bridging are two different methods for forwarding network traffic in a VPN.
@@ -233,6 +245,7 @@ Disadvantages of Bridging:
 
 Less secure: Bridging can increase the risk of unauthorized access to the network due to the flat network topology.
 Less scalable: Bridging is not as scalable as routing and can be limited by the number of devices that can be connected to a single network segment.
+
 In general, routing is preferred for larger and more complex networks where security and scalability are important, while bridging is preferred for simpler networks that require seamless integration and high performance.
 
 
@@ -248,14 +261,11 @@ If you have problems with the ping not going through, go to VirtualBox network a
 ```
 # client.conf
 dev tap
-remote 192.168.64.20 1194 udp
-#remote 192.168.2.10 1194 udp
+remote lab1 1194 udp
 ca ca.crt
 cert vpnclient.crt
 key vpnclient.key
-cipher AES-256-CBC
-auth SHA25
-key-direction 1
+tls-auth /etc/openvpn/ta.key 1
 
 ```
 
@@ -273,47 +283,28 @@ vagrant@lab3:~$ nc lab2 8080
 5.3 Capture incoming/outgoing traffic on GW's enp0s9 or RW's enp0s8. Why can't you read the messages sent in 5.2 (in plain text) even if you comment out the cipher command in the config-files?
 ```
 # GW
-root@lab1:/etc/openvpn# tcpdump -i enp0s9
-tcpdump: verbose output suppressed, use -v or -vv for full protocol decode
-listening on enp0s9, link-type EN10MB (Ethernet), capture size 262144 bytes
-19:48:03.771206 IP lab3.50885 > lab1.openvpn: UDP, length 77
-19:48:03.771535 IP lab1.openvpn > lab3.50885: UDP, length 50
-19:48:03.771835 IP lab1.openvpn > lab3.50885: UDP, length 191
-19:48:03.772932 IP lab3.50885 > lab1.openvpn: UDP, length 50
-19:48:07.802737 ARP, Request who-has lab3 tell lab1, length 28
-19:48:07.803427 ARP, Reply lab3 is-at 08:00:27:a0:0f:67 (oui Unknown), length 46
-19:48:09.964226 IP lab3.50885 > lab1.openvpn: UDP, length 98
-19:48:09.965683 IP lab1.openvpn > lab3.50885: UDP, length 98
-19:48:09.966652 IP lab3.50885 > lab1.openvpn: UDP, length 90
-19:48:10.099769 IP lab1.openvpn > lab3.50885: UDP, length 94
-19:48:11.178139 IP lab3.50885 > lab1.openvpn: UDP, length 94
-19:48:11.179556 IP lab1.openvpn > lab3.50885: UDP, length 90
-19:48:11.297652 IP6 fe80::a00:27ff:fea0:f67 > ip6-allrouters: ICMP6, router solicitation, length 16
-19:48:12.881757 IP lab3.50885 > lab1.openvpn: UDP, length 90
-19:48:12.884196 IP lab1.openvpn > lab3.50885: UDP, length 90
-19:48:12.885444 IP lab3.50885 > lab1.openvpn: UDP, length 90
-
-
-
+root@lab1:/etc/openvpn# tcpdump -i enp0s9 -s 0 -w - port 1194
 
 # RW
 tcpdump -i enp0s8
 ```
 
-If you comment out the cipher command in the OpenVPN server or client configuration file, the VPN traffic will be encrypted using the default cipher specified by OpenVPN (which is AES-256-CBC as of version 2.5). However, even if you use a cipher that does not provide encryption, such as "none", you still won't be able to read the messages sent in plain text.
+If you comment out the cipher command in the OpenVPN server or client configuration file, the VPN traffic will be encrypted using the default cipher specified by OpenVPN (which is AES-256-GCM as of version 2.4). However, even if you use a cipher that does not provide encryption, such as "none", you still won't be able to read the messages sent in plain text. 
 
-This is because OpenVPN uses a tunneling protocol to encapsulate the VPN traffic and send it over the internet. The traffic is not sent in plain text, but is encrypted and encapsulated within the tunnel. The tunneling protocol itself provides some level of security, even if the traffic within the tunnel is not encrypted. Therefore, even if you use a cipher that does not provide encryption, you still won't be able to read the messages sent in plain text because they are encapsulated within the tunnel and not accessible to you without the encryption key.
+
+Note that v2.4 client/server will automatically negotiate AES-256-GCM in TLS mode. If we set cipher as none, it will still negotiate AES-256-GCM. If we disable negotiate `ncp-disable`, using `tcpdump -i enp0s9 -s 0 -w - ` can see the content.
+
+This is because OpenVPN uses a tunneling protocol to encapsulate the VPN traffic and send it over the internet. The traffic is not sent in plain text, but is encrypted and encapsulated within the tunnel. The tunneling protocol itself provides some level of security, even if the traffic within the tunnel is not encrypted. 
 
 
 5.4 Enable ciphering. Is there a way to capture and read the messages sent in 5.2 on GW despite the encryption? Where is the message encrypted and where is it not?
 
-Enabling ciphering in OpenVPN will encrypt the traffic between the client and the server, making it much harder to intercept and read the messages being sent. If you capture the encrypted traffic using a packet capture tool like tcpdump or Wireshark, you will not be able to read the messages sent in plain text without the encryption key.
+Enabling ciphering in OpenVPN will encrypt the traffic between the client and the server, making it much harder to intercept and read the messages being sent. If you capture the encrypted traffic using a packet capture tool like tcpdump or Wireshark, you will not be able to read the messages sent in plain text without the encryption key. 
 
-The message is encrypted in the OpenVPN tunnel between the client and the server. The message is not encrypted on the client or server itself before it enters the tunnel, nor is it encrypted on the client or server after it leaves the tunnel. However, the OpenVPN tunnel provides end-to-end encryption between the client and server, which means that the message cannot be intercepted and read by anyone who does not have the encryption key.
+Yes. Only in `bro` and `enp0s8` . `tcpdump -i br0 -s 0 -w -` and `tcpdump -i enp0s8 -s 0 -w -`
+The message is encrypted in the OpenVPN tunnel between the client and the server. The message is not encrypted on the client or server itself before it enters the tunnel, nor is it encrypted on the server after it leaves the tunnel. However, the OpenVPN tunnel provides end-to-end encryption between the client and server, which means that the message cannot be intercepted and read by anyone who does not have the encryption key.
 
 To read the messages sent in 5.2 on the GW despite the encryption, you would need to have the encryption key that was used to encrypt the traffic. Without the encryption key, the messages cannot be decrypted and read.
-
-It's important to note that OpenVPN uses a strong encryption algorithm to protect the traffic, so it is generally considered to be secure. However, there are some weaknesses that could potentially be exploited by a skilled attacker, so it's important to use strong encryption keys and follow best practices for securing your OpenVPN deployment.
 
 
 5.5 Traceroute RW from SS and vice versa. Explain the result.
@@ -331,6 +322,7 @@ default via 10.0.2.2 dev enp0s3 proto dhcp src 10.0.2.15 metric 100
 10.0.2.0/24 dev enp0s3 proto kernel scope link src 10.0.2.15
 10.0.2.2 dev enp0s3 proto dhcp scope link src 10.0.2.15 metric 100
 192.168.0.0/24 dev enp0s8 proto kernel scope link src 192.168.0.3
+
 vagrant@lab2:~$ traceroute lab3
 traceroute to lab3 (192.168.2.3), 64 hops max
   1   10.0.2.2  0.323ms  0.294ms  0.285ms
@@ -347,38 +339,8 @@ https://linuxops.org/blog/linux/openvpn.html
 https://github.com/icyb3r-code/SysAdmin/tree/master/Linux/Contents/OpenVpn
 
 
-```
-# server.conf
-local 192.168.2.10
-port 1194
-proto udp
-dev tun
-ca ca.crt
-cert vpnserver.crt
-key vpnserver.key
-dh dh.pem
-cipher AES-256-CBC
-auth SHA256
-push "route 192.168.0.0 255.255.255.0"
-status /var/log/openvpn/openvpn-status.log
-log-append /var/log/openvpn/openvpn.log
-
-# client.conf
-dev tap
-remote 192.168.2.10 1194 udp
-ca ca.crt
-cert vpnclient.crt
-key vpnclient.key
-cipher AES-256-CBC
-auth SHA256
-key-direction 1
-tls-auth ta.key 1
-
-```
-
-2. Restart openvpn service on both server and client.
-如果建立成功在客户端：`tail -f /var/log/syslog | grep "Initialization Sequence Completed"`
-
+1. Restart openvpn service on both server and client.
+`tail -f /var/log/syslog | grep "Initialization Sequence Completed"`
 ```
 Mar 16 15:12:22 lab3 ovpn-client[3768]: TUN/TAP device tun0 opened
 Mar 16 15:12:22 lab3 systemd-udevd[3774]: ethtool: autonegotiation is unset or enabled, the speed and duplex are not writable.
@@ -392,16 +354,25 @@ Mar 16 15:12:22 lab3 ovpn-client[3768]: /sbin/ip route add 10.8.0.1/32 via 10.8.
 Mar 16 15:12:22 lab3 ovpn-client[3768]: WARNING: this configuration may cache passwords in memory -- use the auth-nocache option to prevent this
 Mar 16 15:12:22 lab3 ovpn-client[3768]: Initialization Sequence Completed
 ```
-3. Now you should be able to ping virtual IP address of vpn server from client.
-
-```
-
-```
+1. Now you should be able to ping virtual IP address of vpn server from client.
  
 6.1 List and give a short explanation of the commands you used in your server configuration
 
+```
+# server.conf
+# # Configure server mode and supply a VPN subnet
+# for OpenVPN to draw client addresses from.
+# The server will take 10.8.0.1 for itself,
+# the rest will be made available to clients.
+# Each client will be able to reach the server
+# on 10.8.0.1. Comment this line out if you are
+# ethernet bridging. See the man page for more info.
+server 10.8.0.0 255.255.255.0 
+push "route 192.168.0.0 255.255.255.0" # subnet address space
 
-6.2 Show with ifconfig that you have created the new virtual IP interfaces . What's the IP  address?
+```
+
+6.2 Show with ifconfig that you have created the new virtual IP interfaces. What's the IP  address?
 
 
 ```

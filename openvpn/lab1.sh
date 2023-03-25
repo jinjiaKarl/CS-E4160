@@ -224,8 +224,8 @@ sudo /etc/openvpn/bridge-start
 sudo cp /vagrant/server.conf /etc/openvpn/
 sudo systemctl restart openvpn@server
 
-#sudo systemctl status openvpn@server
-#sudo systemctl enable openvpn@server #enable it so that it starts automatically at boot
+# sudo systemctl status openvpn@server
+# sudo systemctl enable openvpn@server #enable it so that it starts automatically at boot
 
 
 # sudo systemctl stop openvpn@server
