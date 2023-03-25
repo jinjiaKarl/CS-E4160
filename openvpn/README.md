@@ -218,36 +218,47 @@ IP of the bridge is same as enp0s8 before. It is 192.168.0.2.
 
 
 4.2 What is the difference between routing and bridging in VPN? What are the benefits/disadvantages of the two? When would you use routing and when bridging?
+
 https://openvpn.net/community-resources/how-to/#determining-whether-to-use-a-routed-or-bridged-vpn
-Routing and bridging are two different methods for forwarding network traffic in a VPN.
 
-Routing is a process of forwarding packets from one network to another based on their destination IP addresses. In a VPN, routing involves creating a tunnel between two networks and forwarding packets between them using the tunnel. The VPN gateway device performs the routing function by examining the packet headers and forwarding them to the appropriate destination based on the routing table.
-
-Bridging, on the other hand, is a process of forwarding packets between two networks at the data link layer (layer 2) of the OSI model. In a VPN, bridging involves connecting two or more network segments together to form a single logical network. This can be achieved using a Layer 2 VPN technology, such as Ethernet bridging, which allows multiple networks to appear as a single network.
-
-The benefits and disadvantages of routing vs. bridging in a VPN depend on the specific use case and network requirements.
+Routing:
+Routing is the process of forwarding packets between different subnets or networks. In OpenVPN, a routed VPN works at the IP layer (Layer 3) of the OSI model. It uses the tun (tunnel) device, which operates at the IP level, and can support various IP protocols like TCP, UDP, ICMP, etc.
 
 Benefits of Routing:
 
-More secure: Routing isolates traffic between different networks and provides greater control over traffic flow and access control policies.
-More scalable: Routing allows for more complex network topologies and larger networks than bridging.
-More flexible: Routing enables different IP address spaces to be used on each network segment.
+* Easier to set up and manage.
+* Lower overhead due to reduced broadcast traffic.
+* Better security since you can apply firewall rules on the VPN subnet.
+* Typically more scalable, as it works well with large networks.
+
 Disadvantages of Routing:
 
-More complex: Routing requires more configuration and management than bridging.
-Slower performance: Routing can introduce more overhead and latency than bridging.
+* Not suitable for non-IP protocols.
+* Inability to handle certain network configurations like when devices require Layer 2 (Ethernet) visibility.
+
+
+When to use Routing:
+You would use routing in most scenarios when connecting different networks or subnets. It's particularly useful when connecting remote sites, mobile clients, or when you need to apply specific firewall rules for the VPN traffic.
+
+Bridging:
+Bridging works at the Ethernet (Layer 2) level of the OSI model. In OpenVPN, a bridged VPN uses the tap (network tap) device, which simulates a virtual Ethernet network interface. It can carry any Ethernet traffic, including non-IP protocols such as NetBIOS or IPX.
+
 Benefits of Bridging:
+* Transparent to all network protocols, including non-IP traffic.
+* Devices connected to the VPN appear as if they are on the same local network, making it suitable for certain applications that require Layer 2 visibility.
+* Supports network configurations that rely on Ethernet broadcasts or multicast traffic.
 
-Simpler configuration: Bridging requires less configuration and management than routing.
-Faster performance: Bridging can provide faster throughput and lower latency than routing.
-Seamless network integration: Bridging allows multiple networks to appear as a single network, simplifying network integration.
 Disadvantages of Bridging:
+* Higher overhead due to increased broadcast traffic.
+* More complex setup and configuration.
+* Less scalable compared to routing, as it may lead to performance issues in large networks.
+* Security is less granular, as firewall rules cannot be applied at the VPN subnet level.
 
-Less secure: Bridging can increase the risk of unauthorized access to the network due to the flat network topology.
-Less scalable: Bridging is not as scalable as routing and can be limited by the number of devices that can be connected to a single network segment.
 
-In general, routing is preferred for larger and more complex networks where security and scalability are important, while bridging is preferred for simpler networks that require seamless integration and high performance.
+When to use Bridging:
+You would use bridging when your network scenario requires Layer 2 connectivity between remote sites or devices, or when dealing with non-IP protocols. Bridging is also suitable for applications that rely on Ethernet broadcasts or multicast traffic.
 
+In summary, routing is generally preferred due to its simplicity, better scalability, and security advantages. However, bridging may be necessary for specific scenarios that require Layer 2 connectivity or compatibility with non-IP protocols.
 
 
 5. Configuring the VPN client and testing connection
