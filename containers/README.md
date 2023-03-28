@@ -7,19 +7,33 @@ You can download the files needed for the assignment at: https://version.aalto.f
 
 1.1 Show your Docker Hub for this assignment’s containers.
 
+https://hub.docker.com/u/jinjia
 
 1.2 How can you use one Docker repository to hold multiple containers?
 
+In Docker, you can use one repository to hold multiple container images by using different tags for each image. A Docker repository is a collection of related Docker images, usually providing different versions or variations of the same application. Docker tags are used to differentiate these images within the same repository.
+
+Here's an example to demonstrate how to use one Docker repository for multiple container images:
+
+```
+docker build -t your_dockerhub_username/repository_name:tag1 .
+docker push your_dockerhub_username/repository_name:tag1
+
+docker build -t your_dockerhub_username/repository_name:tag2 .
+docker push your_dockerhub_username/repository_name:tag2
+
+docker pull your_dockerhub_username/repository_name:tag
+```
+
+In summary, by using different tags for each container image, you can store multiple containers within a single Docker repository. This approach simplifies organization and management of related images.
 
 ## 2. Docker
-You will host three services on different Docker containers: a react webpage, which is the frontend of the website; a spring web application, which contacts a python application and returns the results in json format; and a python application containing the website logic. Due to this architecture, you will need to build the website in reverse order, as the spring application will need to know the IP address of the Python application, and the webpage will need to know the Spring application’s IP. To test out the Docker installation however, you will first build the frontend of the website. Then build the other services, and change the webpage to point to the right address.
+You will host three services on different Docker containers: a react webpage, which is the frontend of the website; a spring web application, which contacts a python application and returns the results in json format; and a python application containing the website logic. Due to this architecture, you will need to build the website in reverse order, as the spring application will need to know the IP address of the Python application, and the webpage will need to know the Spring application’s IP. To test out the Docker installation however, you will first build the frontend of the website. Then build the other services and change the webpage to point to the right address.
 
-1. Go to sa-frontend folder in the files. Before you can build your first Docker image, you need to build the webpage. To do this, you need to install npm. After installing npm, run “npm install” to download the required scripts, and run “npm run build” to build the webpage. After building the webpage, build a Docker image by using the Dockerfile. Push the created image to your Docker hub. Finally, run the created image in a Docker container, and configure it so that port 80 on localhost points to port 80 on the container.
-
+1. Go to sa-frontend folder in the files. Before you can build your first Docker image, you need to build the webpage. To do this, you need to install npm. After installing npm, run “npm install” to download the required scripts, and run “npm run build” to build the webpage. After building the webpage, build a Docker image by using the Dockerfile. Push the created image to your Docker hub. Finally, run the created image in a Docker container, and configure it so that port 3000 on localhost points to port 3000 on the container.
 Hint: use commands “docker build” and “docker push”
 
-
-2. Check that you can access the website frontpage on http://localhost:80 using a web browser. The button doesn’t work yet, as the software logic isn’t running.
+2. Check that you can access the website frontpage on http://localhost:3000 using a web browser. The button doesn’t work yet, as the software logic isn’t running.
 
 3. Go to sa-logic folder, and build the Docker image using the Docker file. Push the image to your hub, and run the application, listening on port 5050 of the host and 5000 of the container.
 
@@ -27,14 +41,59 @@ Hint: use commands “docker build” and “docker push”
 
 5. Now you need to change the sa-frontend/src/App.js -file to fetch data from the webapp container. Edit the analyzeSentence() -function. Before building the Docker image, you will need to build the webpage again. Afterwards, build the Docker image, push it to your hub and run the application.
 
-6. The website should now work on your browser. Go to http://localhost:80 and type a phrase to see the sentiment you get. If the website doesn’t work, try clearing your browser cache of any previous versions it may have stored.
+6. The website should now work on your browser. Go to http://localhost:3000 and type a phrase to see the sentiment you get. If the website doesn’t work, try clearing your browser cache of any previous versions it may have stored.
+
 
 
 2.1 List the commands you used for building, pushing and running the containers
 
+```
+cd ./containers/LaboratoriesNS-master/sa-frontend
+npm install
+npm build
+docker build -t jinjia/sa-frontend:v1 .
+docker push jinjia/sa-frontend:v1
+docker run --rm -p 3000:80 --name sa-frontend jinjia/sa-frontend:v1
+
+cd -
+
+cd ./containers/LaboratoriesNS-master/sa-logic
+docker build -t jinjia/sa-logic:v1 .
+docker push jinjia/sa-logic:v1
+docker run --rm -p 5050:5000  --name sa-logic jinjia/sa-logic:v1
+
+
+cd -
+cd ./containers/LaboratoriesNS-master/sa-webapp
+mvn install
+docker build -t jinjia/sa-webapp:v1 .
+docker push jinjia/sa-webapp:v1
+docker run --rm -p 8080:8080 --name sa-webapp jinjia/sa-webapp:v1
+
+docker network create lab
+docker network connect lab sa-logic
+docker network connect lab sa-webapp
+```
 
 2.2 Show the IP of one of the running containers
 
+```
+➜  containers git:(main) ✗ docker inspect \
+  -f '{{range.NetworkSettings.Networks}}{{.IPAddress}}{{end}}' `docker ps | grep logic | awk '{print $1}'`
+172.17.0.3192.168.16.2
+➜  containers git:(main) ✗ docker inspect \
+  -f '{{range.NetworkSettings.Networks}}{{.IPAddress}}{{end}}' `docker ps | grep sa-webapp | awk '{print $1}'`
+172.17.0.4192.168.16.3
+
+
+
+➜  containers git:(main) ✗ docker inspect -f '{{range .NetworkSettings.Networks}}{{.IPAddress}}{{end}}'  sa-logic
+172.17.0.3192.168.16.2
+➜  containers git:(main) ✗ docker inspect -f '{{range .NetworkSettings.Networks}}{{.IPAddress}}{{end}}'  sa-webapp
+172.17.0.4192.168.16.3
+
+# docker run --rm -e SA_LOGIC_API_URL='http://172.17.0.3:5000' -p 8080:8080 jinjia/sa-webapp:v1
+```
 
 2.3 Demonstrate that the website is running and functional
 
@@ -65,13 +124,68 @@ Now you will add scalability to your service by using load balancers and deploym
 
 
 3.1 List the commands you used for running the services, pods and deployments
+```
+minikube start
+eval $(minikube -p minikube docker-env)
+minikube tunnel
+k apply -f sa-frontend-pod.yaml 
+sudo kubectl port-forward sa-frontend 88:80 # can't use 88, so use 8080
+kubectl apply -f sa-frontend-pod2.yaml
+kubectl apply -f service-sa-frontend-lb.yaml
+kubectl get svc
+kubectl delete po sa-frontend sa-frontend2
+kubectl apply -f sa-frontend-deployment.yaml
 
+
+k apply -f sa-logic-deployment.yaml
+k apply -f service-sa-logic.yaml
+
+k apply -f sa-web-app-deployment.yaml
+k apply -f service-sa-web-app-lb.yaml
+```
 
 3.2 Demonstrate the website is running by connecting to the frontend load balancer. How does this differ from connecting to one of the pods?
 
 pods's ip is not static, so it is not easy to connect to it. But the load balancer's ip is static, so it is easy to connect to it.
 
 3.3 Explain the contents of sa-frontend-deployment.yaml, including what changes you made
+
+This YAML file is a Kubernetes Deployment configuration file used to define the desired state of a set of replicated pods. Let's go through each field in this file:
+
+1. apiVersion: apps/v1: Specifies the API version of Kubernetes resources that the configuration applies to. In this case, it's apps/v1, which is the stable API version for Deployments.
+
+2. kind: Deployment: Defines the type of Kubernetes resource being created, which is a Deployment in this case.
+
+3. metadata:: Contains metadata about the Deployment, such as its name and labels.
+  * name: sa-frontend: The name of the Deployment, which is sa-frontend.
+
+4. spec:: Specifies the desired state of the Deployment.
+  * replicas: 2: The desired number of replica pods to be maintained by the Deployment. Here, 2 replicas are specified.
+
+  * minReadySeconds: 15: The minimum number of seconds a pod should be ready without any of its containers crashing to be considered available. In this case, it's 15 seconds.
+
+  * selector:: Determines which pods are managed by the Deployment based on their labels.
+    * matchLabels:: A set of key-value pairs that must match the labels of the pods.
+    * app: sa-frontend: The key-value pair specifying that the pods with the label app=sa-frontend are managed by this Deployment.
+  
+  * strategy:: The update strategy for the Deployment when new changes are applied.
+    * type: RollingUpdate: Specifies that a rolling update strategy should be used to update the pods.
+    * rollingUpdate:: The parameters for the rolling update strategy.
+      * maxUnavailable: 1: The maximum number of pods that can be unavailable during the update process. In this case, it's 1 pod.
+      * maxSurge: 1: The maximum number of extra pods that can be created during the update process. In this case, it's 1 pod.
+  * template:: The template for creating new pods, which is instantiated when scaling or updating the Deployment.
+    * metadata:: Contains metadata about the pod template.
+    * labels:: The labels to be applied to the pods created from this template.
+      * app: sa-frontend: The key-value pair specifying the label app=sa-frontend.
+  * spec:: Specifies the desired state of the pod, including the containers running in it.
+    * containers:: A list of containers to be run within the pod.
+      * image: jinjia/sa-frontend:v1: The container image to be used, which is jinjia/sa-frontend:v1.
+      * imagePullPolicy: Always: Specifies when to pull the container image. In this case, it's set to Always, which means the image will be pulled every time the pod starts.
+      * name: sa-frontend: The name of the container.
+      * ports:: A list of ports to expose from the container.
+      * containerPort: 80: The port number to be exposed from the container, which is port 80.
+
+
 
 
 3.4 How can you scale a deployment after it has been deployed?
@@ -90,6 +204,8 @@ apiVersion: autoscaling/v1
    maxReplicas: 5
    targetCPUUtilizationPercentage: 20
 ```
+
+kubectl scale deploy sa-frontend --replicas=3
 
 Scaling a deployment after it has been deployed involves increasing or decreasing the resources allocated to the deployment to meet changing demand or performance requirements. Here are a few ways to scale a deployment:
 

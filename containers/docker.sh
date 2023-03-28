@@ -6,14 +6,14 @@ npm install
 npm build
 docker build -t jinjia/sa-frontend:v1 .
 docker push jinjia/sa-frontend:v1
-docker run --rm -p 80:80 jinjia/sa-frontend:v1
+docker run --rm -p 3000:80 --name sa-frontend jinjia/sa-frontend:v1
 
 cd -
 
 cd ./containers/LaboratoriesNS-master/sa-logic
 docker build -t jinjia/sa-logic:v1 .
 docker push jinjia/sa-logic:v1
-docker run --rm -p 5050:5000 jinjia/sa-logic:v1
+docker run --rm -p 5050:5000 --name sa-logic jinjia/sa-logic:v1
 
 cd -
 cd ./containers/LaboratoriesNS-master/sa-webapp
@@ -23,7 +23,7 @@ docker inspect \
   -f '{{range.NetworkSettings.Networks}}{{.IPAddress}}{{end}}' `docker ps | grep logic | awk '{print $1}'`
 docker build -t jinjia/sa-webapp:v1 .
 docker push jinjia/sa-webapp:v1
-docker run --rm -p 8080:8080 jinjia/sa-webapp:v1
+docker run --rm -p 8080:8080 --name sa-webapp  jinjia/sa-webapp:v1
 
 
 
@@ -39,3 +39,7 @@ docker run --rm -p 8080:8080 jinjia/sa-webapp:v1
 # --data '{
 #     "sentence": "test"
 # }'
+
+docker network create lab
+docker network connect lab sa-logic
+docker network connect lab sa-webapp

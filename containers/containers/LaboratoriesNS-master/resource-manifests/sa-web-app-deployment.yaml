@@ -27,3 +27,4 @@ spec:
             value: "http://sa-logic:5000"
         ports:
           - containerPort: 8080
+
