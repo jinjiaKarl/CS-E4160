@@ -181,4 +181,5 @@ sudo systemctl start openvpn@client
 
 # route
 # sudo cp /vagrant/client_route.conf /etc/openvpn/client.conf
+# sudo cp /vagrant/client.conf /etc/openvpn/client.conf
 # sudo systemctl start openvpn@client

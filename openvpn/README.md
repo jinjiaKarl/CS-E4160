@@ -118,7 +118,6 @@ Client
 * `vpnclient.crt`
 * `vpnclient.key`
 * `dh.pem`
-* `tak.key`
   
 
 2.2 Is there a simpler way of authentication available in OpenVPN? What are its benefits/drawbacks?
@@ -141,8 +140,6 @@ Cannot provide user-level authentication, meaning all clients with the same key 
 
 In summary, while Static Key Authentication is simpler to set up and configure, it may not be suitable for environments that require a higher level of security and user-level authentication.
 
-
-Another simpler way is to securely obtain a username and password from a connecting client, and to use that information as a basis for authenticating the client. It is also possible to disable the use of client certificates, and force username/password authentication only. It uses client-cert-not-required may remove the cert and key directives from the client configuration file, but not the ca directive, because it is necessary for the client to verify the server certificate.
 
 
 ## 3. Configuring the VPN server
@@ -171,18 +168,19 @@ server-bridge 192.168.0.2 255.255.255.0 192.168.0.50 192.168.0.100
 server-bridge 192.168.0.2 255.255.255.0 192.168.0.50 192.168.0.100
 
 
-192.168.0.50 192.168.0.100
+192.168.0.50
 ```
 
 3.3 Where can you find the log messages of the server by default? How can you change this?
 ```
-# server.conf
-# OpenVPN的状态日志，默认为/var/log/openvpn/openvpn-status.log
-status openvpn-status.log 
-# default: syslog; /var/log/openvpn/openvpn.log
-log-append openvpn.log
-# 改成verb 5可以多查看一些调试信息
-verb 5
+# By default, log messages will go to the syslog (or
+# on Windows, if running as a service, they will go to
+# the "\Program Files\OpenVPN\log" directory).
+# Use log or log-append to override this default.
+# "log" will truncate the log file on OpenVPN startup,
+# while "log-append" will append to it.  Use one
+# or the other (but not both).
+log         /var/log/openvpn/openvpn.log
 ```
 
 
@@ -300,22 +298,18 @@ root@lab1:/etc/openvpn# tcpdump -i enp0s9 -s 0 -w - port 1194
 tcpdump -i enp0s8
 ```
 
-If you comment out the cipher command in the OpenVPN server or client configuration file, the VPN traffic will be encrypted using the default cipher specified by OpenVPN (which is AES-256-GCM as of version 2.4). However, even if you use a cipher that does not provide encryption, such as "none", you still won't be able to read the messages sent in plain text. 
+If you comment out the cipher command in the OpenVPN server or client configuration file, the VPN traffic will be encrypted using the default cipher specified by OpenVPN (which is AES-256-GCM as of version 2.4). However, even if you use a cipher that does not provide encryption, such as "none", you still won't be able to read the messages sent in plain text. It will still negotiate AES-256-GCM. If we disable negotiate `ncp-disable`, using `tcpdump -i enp0s9 -s 0 -w - ` can see the content.
 
 
-Note that v2.4 client/server will automatically negotiate AES-256-GCM in TLS mode. If we set cipher as none, it will still negotiate AES-256-GCM. If we disable negotiate `ncp-disable`, using `tcpdump -i enp0s9 -s 0 -w - ` can see the content.
-
-This is because OpenVPN uses a tunneling protocol to encapsulate the VPN traffic and send it over the internet. The traffic is not sent in plain text, but is encrypted and encapsulated within the tunnel. The tunneling protocol itself provides some level of security, even if the traffic within the tunnel is not encrypted. 
 
 
 5.4 Enable ciphering. Is there a way to capture and read the messages sent in 5.2 on GW despite the encryption? Where is the message encrypted and where is it not?
 
 Enabling ciphering in OpenVPN will encrypt the traffic between the client and the server, making it much harder to intercept and read the messages being sent. If you capture the encrypted traffic using a packet capture tool like tcpdump or Wireshark, you will not be able to read the messages sent in plain text without the encryption key. 
 
-Yes. Only in `bro` and `enp0s8` . `tcpdump -i br0 -s 0 -w -` and `tcpdump -i enp0s8 -s 0 -w -`
-The message is encrypted in the OpenVPN tunnel between the client and the server. The message is not encrypted on the client or server itself before it enters the tunnel, nor is it encrypted on the server after it leaves the tunnel. However, the OpenVPN tunnel provides end-to-end encryption between the client and server, which means that the message cannot be intercepted and read by anyone who does not have the encryption key.
+But, only in `br0` and `enp0s8`, we can see the decrypted message. `tcpdump -i br0 -s 0 -w -` and `tcpdump -i enp0s8 -s 0 -w -`. Or you have the encryption key, the messages can be decrypted and read between the client and openserver.
 
-To read the messages sent in 5.2 on the GW despite the encryption, you would need to have the encryption key that was used to encrypt the traffic. Without the encryption key, the messages cannot be decrypted and read.
+The message is encrypted in the OpenVPN tunnel between the client and the server. The message is not encrypted on the client or server itself before it enters the tunnel, nor is it encrypted on the server after it leaves the tunnel. 
 
 
 5.5 Traceroute RW from SS and vice versa. Explain the result.
@@ -328,16 +322,28 @@ traceroute to lab2 (192.168.0.3), 64 hops max
 
 
 # SS to RW
+vagrant@lab2:~$ traceroute lab3
+traceroute to lab3 (192.168.2.3), 64 hops max
+  1   10.0.2.2  0.323ms  0.294ms  0.285ms
+  2   *  *  *
+
 vagrant@lab2:~$ ip route
 default via 10.0.2.2 dev enp0s3 proto dhcp src 10.0.2.15 metric 100
 10.0.2.0/24 dev enp0s3 proto kernel scope link src 10.0.2.15
 10.0.2.2 dev enp0s3 proto dhcp scope link src 10.0.2.15 metric 100
 192.168.0.0/24 dev enp0s8 proto kernel scope link src 192.168.0.3
 
-vagrant@lab2:~$ traceroute lab3
-traceroute to lab3 (192.168.2.3), 64 hops max
-  1   10.0.2.2  0.323ms  0.294ms  0.285ms
-  2   *  *  *
+# 192.168.0.50 is the virtual ip address of lab3
+root@lab2:~# traceroute 192.168.0.50
+traceroute to 192.168.0.50 (192.168.0.50), 64 hops max
+  1   192.168.0.50  2.947ms  1.354ms  2.447ms
+
+
+
+
+# 在routed情况下，为什么arp在lab1回不去了？
+# ip route add 192.168.2.0/24 via 192.168.0.3 dev enp0s8
+# ip route del 192.168.2.0/24 via 192.168.0.3 dev ~~enp0s8~~
 ```
 
 
@@ -379,7 +385,7 @@ Mar 16 15:12:22 lab3 ovpn-client[3768]: Initialization Sequence Completed
 # on 10.8.0.1. Comment this line out if you are
 # ethernet bridging. See the man page for more info.
 server 10.8.0.0 255.255.255.0 
-push "route 192.168.0.0 255.255.255.0" # subnet address space
+push "route 192.168.0.0 255.255.255.0" # subnet address space behind the openvpn server
 
 ```
 

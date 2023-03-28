@@ -235,9 +235,11 @@ sudo systemctl restart openvpn@server
 
 # route setup
 # sudo cp /vagrant/server_route.conf /etc/openvpn/server.conf
+# sudo cp /vagrant/server.conf /etc/openvpn/server.conf
 # # sudo openvpn --config server.conf # check if it works
 # sudo tee -a /etc/sysctl.conf > /dev/null <<EOF
 # net.ipv4.ip_forward=1
 # EOF
 # sudo iptables -t nat -A POSTROUTING -o enp0s8 -j MASQUERADE
+# iptables -t nat -D POSTROUTING 1
 # sudo systemctl restart openvpn@server
