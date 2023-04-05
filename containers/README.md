@@ -190,6 +190,8 @@ This YAML file is a Kubernetes Deployment configuration file used to define the 
 
 3.4 How can you scale a deployment after it has been deployed?
 
+kubectl scale deploy sa-frontend --replicas=3
+
 ```
 apiVersion: autoscaling/v1
  kind: HorizontalPodAutoscaler
@@ -204,8 +206,6 @@ apiVersion: autoscaling/v1
    maxReplicas: 5
    targetCPUUtilizationPercentage: 20
 ```
-
-kubectl scale deploy sa-frontend --replicas=3
 
 Scaling a deployment after it has been deployed involves increasing or decreasing the resources allocated to the deployment to meet changing demand or performance requirements. Here are a few ways to scale a deployment:
 
